@@ -7,9 +7,11 @@ The goal is to build a small, local, multi-tenant customer support agent for two
 **fictional** insurance tenants — *Northstar Insurance* and *Meridian Cover* — and then
 attack it, document findings, and harden it with evidence.
 
-> **Status: Session 4 — tool gateway with `read_customer` / `update_customer`.**
-> These tools enforce role permissions and tenant-scoped queries in code (tested at the function level),
-> but they are not exposed over HTTP. There is still no agent, no model provider and **no real authentication**.
+> **Status: Session 5 — five tools plus a simulated refund-approval service.**
+> `read_customer`, `update_customer`, `search_kb`, `draft_email` (drafts only) and `request_refund`
+> (pending only) enforce role permissions and tenant-scoped queries in code, and are tested at function level.
+> Refund approval and execution are a separate human-only service. Nothing is exposed over HTTP. There is still
+> no agent, no model provider, no money movement and **no real authentication**.
 > Never put credentials, tokens or personal data in query parameters.
 > **Tenant isolation is not yet enforced by the application.** See
 > [docs/limitations.md](docs/limitations.md).
@@ -38,7 +40,8 @@ attack it, document findings, and harden it with evidence.
 ```
 app/              FastAPI app, audit events, error handling, models, SQLite schema, fixtures, seeding
 app/identity/     Principal contract + local-only dev identity fixture
-tools/            Agent tools (read_customer, update_customer); called via app/gateway.py
+tools/            Agent tools (customers, kb, email, refunds); called via app/gateway.py
+app/approvals.py  Human-only refund approval/execution service (not an agent tool)
 data/             Local SQLite database (git-ignored) and data conventions
 tests/            pytest suite
 attacks/          Attack cases mapped to threats in docs/threat-model.md

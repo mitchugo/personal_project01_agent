@@ -107,3 +107,29 @@ A running record of what was learned each session. Keep entries short and honest
 **Next session**
 - Decide how the agent runtime calls the gateway, then `search_kb` with tenant-scoped retrieval and
   untrusted-content handling, using attack fixture `ns-kb-004`.
+
+## Session 5 — 2026-11-05 — search_kb, draft_email, request_refund, approval service
+
+**Done**
+- `search_kb`: tenant-scoped keyword search, LIKE wildcards escaped, bounded results, labelled untrusted.
+- `draft_email`: drafts only; recipient comes from the tenant-scoped customer record, never from arguments.
+- `request_refund` creates pending requests only. `app/approvals.py` is a trusted, non-tool service with a
+  compare-and-set state machine, approval bound to exact values, separation of duties, and idempotent execution.
+- Schema: `email_drafts`, `refund_requests` (with DB-level self-approval CHECK), `refund_ledger` (UNIQUE refund_id).
+- Suite went from 175 to 295 passing tests. Evidence is in `evidence/runs/2026-11-05-session-05/`.
+
+**Learned / reinforced**
+- **Removing an input beats validating it.** `draft_email` has no recipient field, so there's nothing to substitute.
+- **Keep privileged actions out of the agent's reach entirely.** Approval isn't a tool with a role check;
+  it isn't in the registry, so the gateway reports `unknown_tool`.
+- **Compare-and-set makes replay harmless.** `UPDATE ... WHERE status = 'pending_approval'` simply matches
+  nothing the second time, without needing a separate "has this run?" check that could race.
+- **Constraints as a backstop:** the self-approval CHECK and `UNIQUE(refund_id)` still hold if the Python checks regress.
+- **`with conn:` inside a manual transaction commits early.** Repository functions used inside
+  `write_transaction` must not open their own transaction blocks.
+- One test failed because *my test* assumed "any term" search would find nothing; common words matched the
+  user's own tenant documents. The fix was to assert the real property: no other tenant's documents.
+
+**Next session**
+- Agent runtime design: how model output reaches the gateway, how untrusted tool output is framed in prompts,
+  then attack sessions with `mc-tkt-005` and `ns-kb-004`.

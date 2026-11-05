@@ -16,13 +16,27 @@ from app.models import Role
 class Action(str, Enum):
     READ_CUSTOMER = "read_customer"
     UPDATE_CUSTOMER = "update_customer"
+    SEARCH_KB = "search_kb"
+    DRAFT_EMAIL = "draft_email"
+    REQUEST_REFUND = "request_refund"
+    # Human-only actions: performed through app/approvals.py, never registered as agent tools.
+    APPROVE_REFUND = "approve_refund"
+    EXECUTE_REFUND = "execute_refund"
 
+
+_STAFF = frozenset({Role.SUPPORT_AGENT, Role.SUPERVISOR})
 
 # Which roles may perform each action at all.
 _ALLOWED_ROLES: dict[Action, frozenset[Role]] = {
-    Action.READ_CUSTOMER: frozenset({Role.SUPPORT_AGENT, Role.SUPERVISOR}),
-    Action.UPDATE_CUSTOMER: frozenset({Role.SUPPORT_AGENT, Role.SUPERVISOR}),
-    # tenant_admin is intentionally absent: administration does not imply customer access.
+    Action.READ_CUSTOMER: _STAFF,
+    Action.UPDATE_CUSTOMER: _STAFF,
+    Action.SEARCH_KB: frozenset({Role.SUPPORT_AGENT, Role.SUPERVISOR, Role.TENANT_ADMIN}),
+    Action.DRAFT_EMAIL: _STAFF,
+    Action.REQUEST_REFUND: _STAFF,
+    Action.APPROVE_REFUND: frozenset({Role.SUPERVISOR}),  # plus: not own request (app/approvals.py)
+    Action.EXECUTE_REFUND: frozenset({Role.SUPERVISOR}),
+    # tenant_admin is intentionally absent from customer actions:
+    # administration does not imply customer access.
 }
 
 CONTACT_FIELDS = frozenset({"email", "phone", "address"})

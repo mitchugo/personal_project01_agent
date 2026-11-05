@@ -18,7 +18,10 @@ def test_staff_may_update_contact_fields(role):
     assert authorize(role, Action.UPDATE_CUSTOMER, CONTACT_FIELDS).allowed
 
 
-@pytest.mark.parametrize("action", list(Action))
+CUSTOMER_ACTIONS = [a for a in Action if a is not Action.SEARCH_KB]  # admin may search KB only
+
+
+@pytest.mark.parametrize("action", CUSTOMER_ACTIONS)
 def test_tenant_admin_is_denied_every_customer_action(action):
     decision = authorize(Role.TENANT_ADMIN, action, frozenset({"email"}))
     assert not decision.allowed
@@ -30,6 +33,24 @@ def test_tenant_admin_is_denied_every_customer_action(action):
 def test_non_contact_fields_are_not_updatable_by_anyone_yet(role, field):
     decision = authorize(role, Action.UPDATE_CUSTOMER, frozenset({"email", field}))
     assert (decision.allowed, decision.reason) == (False, "field_not_permitted")
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_every_role_may_search_kb(role):
+    assert authorize(role, Action.SEARCH_KB).allowed
+
+
+@pytest.mark.parametrize("action", [Action.DRAFT_EMAIL, Action.REQUEST_REFUND])
+@pytest.mark.parametrize("role", STAFF)
+def test_staff_may_draft_email_and_request_refunds(role, action):
+    assert authorize(role, action).allowed
+
+
+@pytest.mark.parametrize("action", [Action.APPROVE_REFUND, Action.EXECUTE_REFUND])
+def test_only_supervisors_may_approve_or_execute_refunds(action):
+    assert authorize(Role.SUPERVISOR, action).allowed
+    assert not authorize(Role.SUPPORT_AGENT, action).allowed
+    assert not authorize(Role.TENANT_ADMIN, action).allowed
 
 
 def test_update_with_no_fields_is_denied():

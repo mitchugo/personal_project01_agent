@@ -42,6 +42,8 @@ Unless the **Status updates** table below says otherwise, every row is **Control
 | T-15 | Client forges or reuses correlation IDs to confuse or pollute the audit trail | TB1, TB6 | A6 | — | Correlation IDs generated server-side; client header ignored |
 | T-16 | Error responses leak internals (stack traces, SQL errors, file paths, submitted input) | TB1 | A1, A7 | — | Uniform error envelope; catch-all 500; validation errors omit input values |
 | T-17 | Dev user selector (`X-Dev-User-Id`) enabled in a deployed environment, letting anyone impersonate any user | TB1 | A1, A2 | — | Fails closed unless `IDENTITY_MODE=local-fixture` and `APP_ENV=local`; documented as not authentication |
+| T-18 | Refund approval replayed, double-approved, executed twice, or approved for a different amount/customer than requested | TB5 | A3 | LLM06 | CAS state transitions; approval bound to exact customer/amount/currency; `UNIQUE(refund_id)` ledger; idempotent execution |
+| T-19 | Email draft redirected to an attacker or another tenant's customer (recipient substitution, header injection) | TB2, TB3 | A1, A5 | LLM05, LLM06 | No recipient argument; address from tenant-scoped record; to/cc/bcc rejected; header-like lines rejected |
 | T-14 | Tenant admin escalates privilege via role assignment (e.g. grants themselves supervisor to approve refunds, or reach customer data) | TB1 | A1, A3 | — | Admin functions on a separate, audited path; admin cannot change their own role; role changes audited |
 
 ### Status updates
@@ -60,6 +62,12 @@ Unless the **Status updates** table below says otherwise, every row is **Control
 | T-02 | 4 | **Implemented + tested:** central policy (`app/authz.py`, default deny) enforces the read/update rows of the matrix; field allow-list per role; immutable fields rejected. | Applies to two tools only. |
 | T-05 | 4 | **Implemented + tested:** every customer `SELECT`/`UPDATE` is `WHERE customer_id = ? AND tenant_id = ?`; cross-tenant read/update returns `not_found`, identical to a missing ID; target row unchanged; a test records every statement and checks scoping and parameter binding. Mutation check: removing the tenant filter fails 6 tests. | Concurrency, other tables and future queries are not covered. |
 | T-06 | 4 | Partially: update responses return field names only; reads omit `tenant_id`; audit records field names, never values. | Reads still return the full contact view; no role-based masking or "minimum necessary" review yet. |
+| T-03 | 5 | **Partially implemented + tested:** `search_kb` is read-only and labels results `content_trust: "untrusted"`. A test retrieves `ns-kb-004` and shows no state change, no other tool call, and an unchanged actor. Refunds need a human regardless of what text says. | **No LLM yet:** whether a model obeys injected text, and what it does with tool output, is untested. |
+| T-04 | 5 | **Implemented + tested:** agent can only create `pending_approval`; approve/execute are not registered tools; approval needs a re-verified same-tenant supervisor who is not the requester (code + DB CHECK); forged flags/tokens/identities rejected. | No reject transition; no real authentication behind "verified". |
+| T-05 | 5 | Extended to KB, drafts and refunds: all queries tenant-scoped; cross-tenant search, draft, request, approval and execution tested. | Concurrency not tested. |
+| T-10 | 5 | Drafts only (schema has no sent state); header-like lines and control characters rejected. | No HTML/link sanitisation; no rendering exists yet. |
+| T-18 | 5 | **Implemented + tested:** replay, double approval, binding mismatch, execution without approval, idempotent re-execution and rollback on ledger failure/crash. Mutation check: removing status + binding checks fails 5 tests. | Single-process SQLite only. |
+| T-19 | 5 | **Implemented + tested:** 9 destination/send field variants and 5 header/multi-recipient tricks rejected; recipient always the customer on file. | A future send step must keep these guarantees. |
 | T-07 | 4 | `tool.invoke` events record tool, decision, reason, resource ID and field names. Tests check that names, emails, phones, addresses, policy numbers and attempted new values never appear in logs. | See limitations: logging controls still to verify before any deployment. |
 
 ## 3. Security assumptions

@@ -34,11 +34,11 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 | C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Dev fixture implemented + unit-tested (Session 2); not wired to the API |
 | C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Planned |
 | C4 | Model adapter | Single interface to a model provider | Planned (no provider connected) |
-| C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Implemented + tested for 2 tools (Session 4); not reachable over HTTP yet; see §11 |
-| C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | `read_customer`, `update_customer` implemented + tested (Session 4); others planned |
+| C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Implemented + tested at function level for all 5 tools (Sessions 4–5); not reachable over HTTP yet; see §11–12 |
+| C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | All five implemented + tested at function level (Sessions 4–5); not exposed over HTTP or to an LLM |
 | C7 | Data store (SQLite) | Tenant-scoped synthetic data | Schema + fixtures implemented + tested (Session 2); see §8 |
-| C8 | KB retrieval | Tenant-scoped document search; results returned as **data** | Planned |
-| C9 | Approval service | Records refund requests; requires a verified supervisor decision | Planned |
+| C8 | KB retrieval | Tenant-scoped document search; results returned as **data** | Implemented + tested (Session 5, `search_kb`); keyword search only |
+| C9 | Approval service | Records refund requests; requires a verified supervisor decision | Implemented + tested as a simulated in-process service (Session 5, `app/approvals.py`); no UI/HTTP |
 | C10 | Audit log | Records who/what/when/decision; excludes secrets and unnecessary personal data | Structured events + metadata allow-list implemented + tested (Session 3); written to stderr only, no persistent store |
 
 ## 4. Architecture diagram
@@ -121,8 +121,9 @@ Every decision in steps 6–8, allowed or denied, is written to the audit log (C
 
 ## 7. Permission matrix
 
-> **Enforcement status (Session 4):** `read_customer` and `update_customer` rows are enforced in
-> code by [app/authz.py](../app/authz.py) and tested. All other rows are documentation only.
+> **Enforcement status (Session 5):** all tool rows plus refund approve/execute are enforced in code by
+> [app/authz.py](../app/authz.py) (role) together with tenant-scoped repositories and the approval
+> service (self-approval, binding), and tested. "Manage tenant users" and the `/chat` row remain documentation only.
 
 > **Decision record:** matrix approved by the project owner on 2026-11-05, including:
 > tenant admins have no customer-data access; support agents may update contact fields only;
@@ -146,9 +147,11 @@ Each tenant has three fixture users, one per role:
 | `update_customer` | ⚠️ contact fields only (email, phone, address) | ⚠️ contact fields only today; `policy_note` approved but **not yet enabled** | ❌ |
 | Use the `/chat` interface | ✅ | ✅ | ✅ chat access only; business tools still follow this matrix (decision 2026-11-05) |
 | `search_kb` | ✅ | ✅ | ✅ |
-| `draft_email` | ✅ draft only, never sends | ✅ draft only, never sends | ❌ |
+| `draft_email` | ✅ draft only, never sends; recipient = customer on file | ✅ same | ❌ |
 | `request_refund` (create pending request) | ✅ | ✅ | ❌ |
-| Approve / reject refund | ❌ | ✅ **not their own request** | ❌ |
+| Approve refund (human service, not a tool) | ❌ | ✅ **not their own request**; exact customer/amount/currency | ❌ |
+| Execute approved refund (simulated, idempotent) | ❌ | ✅ | ❌ |
+| Reject refund | ❌ | ✅ (planned; no reject transition yet) | ❌ |
 | Manage tenant users and role assignments | ❌ | ❌ | ✅ separate admin path, audited, not exposed to the agent |
 
 ### Global rules
@@ -344,3 +347,69 @@ must be in `07700 900xxx`; address 5–200 characters with no control characters
 
 Design trade-off: to keep every customer query tenant-scoped, the system does not check whether a
 `not_found` ID exists in another tenant, so cross-tenant probing can't yet be told apart from typos in the audit log.
+
+## 12. search_kb, draft_email, request_refund and the approval service (Session 5)
+
+### 12.1 Trust boundaries
+
+```
+untrusted: tool_name + raw_args             trusted: Principal, approval service (human path)
+-------------------------------------------+----------------------------------------------------
+gateway.execute_tool --> search_kb          | read-only; WHERE tenant_id = ?; text returned as
+                                            |   labelled untrusted data (content_trust: "untrusted")
+                     --> draft_email        | no recipient argument: address taken from the
+                                            |   tenant-scoped customer record; stored as 'draft'
+                     --> request_refund     | creates pending_approval only
+                     X   approve / execute  | NOT registered -> unknown_tool
+app/approvals.py  approve_refund(approver Principal, ApprovalBinding)   <- human supervisor
+                  execute_refund(operator Principal, ExecuteRequest)
+```
+
+TB4 (retrieved content → prompt context): `search_kb` cannot cause side effects. A document's text cannot
+change the Principal, call tools or alter permissions. Whether a future LLM *obeys* injected text is
+untested until the agent runtime exists. The design goal is that obeying it still can't exceed the
+user's permissions, and a refund still needs a human.
+
+### 12.2 Schema additions
+
+| Table | Purpose | Key constraints |
+|---|---|---|
+| `email_drafts` | Stored drafts | `status CHECK = 'draft'` (no sent state); composite FKs to same-tenant customer/author |
+| `refund_requests` | Refund workflow | amount 1–50,000 pence; `currency = 'GBP'`; status enum; `CHECK approved_by <> requested_by`; `CHECK (status='pending_approval') = (approved_by IS NULL)`; FK `(approved_by, tenant_id)`; partial unique index: one pending per customer |
+| `refund_ledger` | Simulated payout record | `refund_id UNIQUE` (no double execution); FK to same-tenant refund |
+
+### 12.3 Refund approval state machine
+
+```
+ request_refund (agent tool)     approve_refund (human)              execute_refund (human/service)
+ [pending_approval] ----------> [approved] -----------------------> [executed]
+        |  CAS: status='pending_approval' AND customer, amount,       CAS: status='approved'
+        |       currency match AND requested_by <> approver           + INSERT ledger (same txn)
+        |                                                             repeat -> already_executed
+```
+
+- Every transition is a compare-and-set `UPDATE ... WHERE ... AND status = <expected>` inside
+  `BEGIN IMMEDIATE` (`app.db.write_transaction`), so a replayed or concurrent transition matches 0 rows.
+- The approver is re-verified against `users` (user exists in that tenant with that role), so a
+  fabricated or escalated `Principal` gets `unverified_principal`.
+- **Approval binding:** the human confirms `refund_id, customer_id, amount_pence, currency`, and every
+  value must match the stored request.
+- **Execution:** the status update and ledger insert commit together. Any failure rolls back both.
+  A repeat returns the same result and writes nothing.
+
+| Approval check | Result / reason |
+|---|---|
+| Role not supervisor | `denied / role_not_permitted` |
+| Principal not consistent with `users` | `denied / unverified_principal` |
+| Refund not in approver's tenant | `not_found / not_found_in_tenant` |
+| Not pending (replay, double approval) | `conflict / already_decided` |
+| Approver is requester | `denied / self_approval` (also DB CHECK) |
+| Customer/amount/currency differ | `denied / binding_mismatch` |
+| Execute while pending | `denied / not_approved` |
+
+### 12.4 Audit events
+
+`tool.invoke` (all tools), `refund.approval` and `refund.execution` record actor, tenant, decision,
+reason, resource ID and, where relevant, `amount_pence`, `currency`, `from_status`, `to_status`,
+`result_count` and `body_length`. Never recorded: search queries, document text, email subject/body,
+recipient addresses, refund reasons.

@@ -18,7 +18,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 audit_logger = logging.getLogger("audit")
 audit_logger.setLevel(logging.INFO)
 
-EventType = Literal["http.request", "identity.resolve", "chat.message", "tool.invoke"]
+EventType = Literal[
+    "http.request", "identity.resolve", "chat.message", "tool.invoke",
+    "refund.approval", "refund.execution",
+]
 # success: allowed and completed | denied: identity/authorisation refused
 # rejected: invalid client input | error: server-side failure
 Outcome = Literal["success", "denied", "rejected", "error"]
@@ -37,6 +40,12 @@ ALLOWED_METADATA_KEYS = frozenset(
         "decision",         # "allow" | "deny"
         "resource_id",      # validated record ID (pseudonymous), never record contents
         "fields",           # comma-separated field NAMES, never values
+        "result_count",     # number of search results - never the query or the text
+        "body_length",      # length of a draft body - never the body
+        "amount_pence",     # synthetic refund amount (financial accountability, not personal data)
+        "currency",
+        "from_status",      # refund state transition
+        "to_status",
     }
 )
 

@@ -19,17 +19,20 @@ from pydantic import ValidationError
 from app.audit import emit
 from app.errors import FieldError
 from app.identity import Principal
-from tools.customers import (
-    ReadCustomerArgs,
-    ToolResult,
-    UpdateCustomerArgs,
-    read_customer,
-    update_customer,
-)
+from tools.common import ToolResult
+from tools.customers import ReadCustomerArgs, UpdateCustomerArgs, read_customer, update_customer
+from tools.email import DraftEmailArgs, draft_email
+from tools.kb import SearchKbArgs, search_kb
+from tools.refunds import RequestRefundArgs, request_refund
 
+# The complete set of agent-callable tools. Refund approval/execution are deliberately
+# absent: they live in app/approvals.py and are reachable only by trusted human code paths.
 TOOLS = {
     "read_customer": (ReadCustomerArgs, read_customer),
     "update_customer": (UpdateCustomerArgs, update_customer),
+    "search_kb": (SearchKbArgs, search_kb),
+    "draft_email": (DraftEmailArgs, draft_email),
+    "request_refund": (RequestRefundArgs, request_refund),
 }
 
 

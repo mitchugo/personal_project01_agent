@@ -2,12 +2,23 @@
 
 Read this before drawing conclusions from the project.
 
-## Current state (Session 4)
+## Current state (Session 5)
 
-- **Tenant isolation is enforced for two tools only.** `read_customer` and `update_customer` scope
-  every query by `customer_id` and the principal's tenant, and their tests pass. Tickets, KB documents
-  and future tools have no such enforcement yet, and the tools are **not reachable over HTTP or by an LLM**,
-  so nothing has been tested end-to-end.
+- **Five tools and a simulated approval service are enforced and tested at function level only.**
+  They are **not reachable over HTTP or by an LLM**, so nothing has been tested end-to-end. Tickets have
+  no tool and no tenant-scoped access path yet.
+- **Prompt injection is only partly addressed.** `search_kb` returns injected text as labelled untrusted data and
+  can't cause actions itself. How a real model reacts to that text is untested.
+- **"Verified supervisor" means consistent with the synthetic users table.** It is not authentication.
+  The approval service has no UI, HTTP route or step-up verification.
+- **Refunds:** simulated only (a status change plus a ledger row; no money, no payment integration). There's no
+  reject or cancel transition, so a mistaken pending request blocks new requests for that customer.
+  The £500 limit and GBP-only rule are fictional. Each tenant has one supervisor, so a supervisor's own
+  requests can never be approved.
+- **Concurrency is untested.** `BEGIN IMMEDIATE`, compare-and-set updates and unique constraints are
+  designed for it, but tests run single-threaded.
+- **`search_kb` is basic keyword matching** (any term), with no semantic retrieval or relevance tuning.
+- **Email drafts** are stored in plain text. There's no HTML/link sanitisation, retention rule or send path.
 - **These tests don't prove the application is secure.** They cover the listed cases at
   the function level, plus two deliberate mutation checks. Concurrency, other tables, future
   code paths and real LLM behaviour are untested.
