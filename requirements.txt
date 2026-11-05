@@ -1,0 +1,9 @@
+# Pinned to the versions already present in the local .venv (Session 1).
+# No model-provider SDKs are included on purpose.
+fastapi==0.162.0
+pydantic==2.14.3
+uvicorn==0.54.0
+
+# Testing
+pytest==9.2.0
+httpx==0.28.1  # required by fastapi.testclient

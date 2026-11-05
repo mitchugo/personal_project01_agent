@@ -1,0 +1,26 @@
+﻿# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets / local config (only .env.example is committed)
+.env
+.env.*
+!.env.example
+
+# Local databases (regenerate from synthetic fixtures)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs (may contain data; promote redacted copies to evidence/ deliberately)
+*.log
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,171 @@
+# Architecture
+
+> **Status:** Design only (Session 1). Apart from the `/health` endpoint, every component
+> below is **planned, not implemented**. Control status values are used throughout:
+> **Planned → Implemented → Tested**. Today every control is *Planned*.
+
+## 1. Purpose and scope
+
+A local, multi-tenant customer support agent for two fictional insurers. Support staff
+chat with an AI agent that can read and update customer records, search a knowledge base,
+draft emails and raise refund requests — all on synthetic data.
+
+The security design rests on one idea: **the LLM is an untrusted component.** It can
+*propose* actions. It cannot *authorise* them. See [ADR-001](decisions/ADR-001.md).
+
+## 2. Actors
+
+| Actor | Description | Trust |
+|---|---|---|
+| Support agent | Tenant staff member handling tickets via the agent | Authenticated (simulated), least privilege |
+| Supervisor | Tenant staff member; approves refunds | Authenticated (simulated), elevated for approvals |
+| Tenant admin | Manages tenant configuration and users | Authenticated (simulated), admin scope only |
+| End customer (indirect) | Never uses the system directly; their text arrives via tickets | **Untrusted** content source |
+| KB author (indirect) | Content in KB documents may be stale, wrong or malicious | **Untrusted** content source |
+| LLM | Plans responses and proposes tool calls | **Untrusted** output |
+| Developer / operator | Runs the lab locally | Trusted, out of band |
+| Attacker | Malicious tenant user, or anyone able to plant text in tickets/KB | Hostile |
+
+## 3. Components
+
+| # | Component | Responsibility | Status |
+|---|---|---|---|
+| C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health` only |
+| C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Planned |
+| C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Planned |
+| C4 | Model adapter | Single interface to a model provider | Planned (no provider connected) |
+| C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Planned |
+| C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | Planned |
+| C7 | Data store (SQLite) | Tenant-scoped synthetic data | Planned |
+| C8 | KB retrieval | Tenant-scoped document search; results returned as **data** | Planned |
+| C9 | Approval service | Records refund requests; requires a verified supervisor decision | Planned |
+| C10 | Audit log | Records who/what/when/decision; excludes secrets and unnecessary personal data | Planned |
+
+## 4. Architecture diagram
+
+```mermaid
+flowchart LR
+    subgraph Client["Client (untrusted input)"]
+        U["Support staff browser / API client"]
+    end
+
+    subgraph Server["Application server (trusted)"]
+        API["C1 API - FastAPI"]
+        ID["C2 Identity context<br/>(local fixture, NOT auth)"]
+        ORCH["C3 Agent orchestrator"]
+        GW["C5 Tool gateway<br/>policy enforcement point"]
+        TOOLS["C6 Tools"]
+        APPR["C9 Approval service"]
+        AUD["C10 Audit log"]
+    end
+
+    subgraph Model["Model provider (untrusted output)"]
+        LLM["C4 Model adapter + LLM"]
+    end
+
+    subgraph Data["Data layer"]
+        DB[("C7 SQLite<br/>synthetic, tenant-scoped")]
+        KB[("C8 KB documents<br/>untrusted content")]
+    end
+
+    SUP["Supervisor (human approver)"]
+
+    U -->|"1 request + session"| API
+    API -->|"2 resolve identity"| ID
+    API -->|"3 message + trusted context"| ORCH
+    ORCH -->|"4 prompt"| LLM
+    LLM -->|"5 proposed tool call"| ORCH
+    ORCH -->|"6 proposal (no identity from LLM)"| GW
+    ID -.->|"tenant_id, user_id, role"| GW
+    GW -->|"7 allowed calls only"| TOOLS
+    TOOLS --> DB
+    TOOLS --> KB
+    TOOLS -->|"refund request"| APPR
+    SUP -->|"8 verified approve / reject"| APPR
+    GW --> AUD
+    APPR --> AUD
+    TOOLS -->|"9 results as data"| ORCH
+```
+
+## 5. Data flows
+
+1. **Request:** client sends a message with a session reference to the API (C1).
+2. **Identity:** C1 resolves the session to `{user_id, tenant_id, role}` via C2. This is the
+   *only* source of identity for the rest of the request.
+3. **Orchestration:** C3 receives the user message plus the trusted context.
+4. **Model call:** C3 sends the prompt to the model (C4). Tenant identifiers need not be
+   given to the model at all.
+5. **Proposal:** the model returns text and/or a *proposed* tool call with arguments.
+6. **Enforcement:** C5 discards any identity- or tenant-like arguments from the proposal,
+   validates the remaining arguments against a schema, takes identity from C2, and checks
+   the permission matrix (§7) and resource ownership (record belongs to caller's tenant).
+7. **Execution:** only allowed calls reach C6. Data access is filtered by the server-side
+   `tenant_id`.
+8. **Approval:** `request_refund` creates a *pending* request only. A supervisor of the same
+   tenant, verified by C2, approves or rejects it outside the model loop.
+9. **Results:** tool output (including retrieved KB text and ticket text) goes back to C3
+   marked as untrusted data, never as system instructions.
+
+Every decision in steps 6–8, allowed or denied, is written to the audit log (C10).
+
+## 6. Trust boundaries
+
+| ID | Boundary | What crosses it | Key concern |
+|---|---|---|---|
+| TB1 | Client → API | User messages, session reference | Spoofed identity, malformed input |
+| TB2 | Orchestrator ↔ Model | Prompts out; text + proposed tool calls in | Model output is attacker-influenceable (prompt injection) |
+| TB3 | Tool gateway → Tools / Data | Authorised calls | Cross-tenant access, excessive agency |
+| TB4 | Retrieved content → Prompt context | KB documents, ticket text, customer notes | Indirect prompt injection |
+| TB5 | Human approver → Approval service | Approve/reject decisions | Forged or self-approval |
+| TB6 | Application → Audit log | Event records | Leakage of secrets or personal data into logs |
+
+## 7. Permission matrix (documentation only — not enforced yet)
+
+> **Decision record:** matrix approved by the project owner on 2026-11-05, including:
+> tenant admins have no customer-data access; support agents may update contact fields only;
+> supervisors cannot approve their own refund requests; tenant administration (users and
+> role assignments) is a separately controlled and audited capability.
+
+### Roles
+
+Each tenant has three fixture users, one per role:
+
+| Tenant | Users (fixture IDs) |
+|---|---|
+| Northstar Insurance (`northstar`) | `ns-agent-01` (support_agent), `ns-super-01` (supervisor), `ns-admin-01` (tenant_admin) |
+| Meridian Cover (`meridian`) | `mc-agent-01` (support_agent), `mc-super-01` (supervisor), `mc-admin-01` (tenant_admin) |
+
+### Actions (within the caller's own tenant)
+
+| Action | support_agent | supervisor | tenant_admin |
+|---|---|---|---|
+| `read_customer` | ✅ | ✅ | ❌ |
+| `update_customer` | ⚠️ contact fields only (email, phone, address) | ✅ contact + policy-note fields | ❌ |
+| `search_kb` | ✅ | ✅ | ✅ |
+| `draft_email` | ✅ draft only, never sends | ✅ draft only, never sends | ❌ |
+| `request_refund` (create pending request) | ✅ | ✅ | ❌ |
+| Approve / reject refund | ❌ | ✅ **not their own request** | ❌ |
+| Manage tenant users and role assignments | ❌ | ❌ | ✅ separate admin path, audited, not exposed to the agent |
+
+### Global rules
+
+- **Cross-tenant access is denied for every role.** There is no platform super-user in the agent path.
+- **Default deny:** any action not listed is refused.
+- **Approval is never an agent tool.** The model cannot approve refunds.
+- **Tenant admins get no customer-data access** (least privilege). Administering a tenant does not imply reading its customers.
+- **Administrative functions are separately controlled and audited.** User and role management
+  uses its own authorisation check (not the agent tool gateway), every change is audited, and an
+  admin cannot change their own role (see T-14).
+- **Knowledge documents are tenant-private.** No KB document is shared across tenants. Cross-tenant
+  sharing may be introduced later as a separate, explicitly threat-modelled scenario.
+
+## 8. Open questions
+
+1. Is there a refund amount threshold above which a second approver is required?
+2. What audit retention period should the lab model?
+
+### Resolved (2026-11-05)
+
+- **Dataset split:** even, per tenant: 10 customers, 5 tickets, 4 KB documents.
+- **Shared KB:** none. KB documents are tenant-private for now.
+- **Tenant admin customer access:** none, including read-only.
