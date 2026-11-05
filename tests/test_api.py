@@ -93,6 +93,14 @@ def test_audit_demo_returns_exactly_the_static_synthetic_events(client):
     assert body["events"] == [e.model_dump(mode="json") for e in DEMO_EVENTS]
 
 
+@pytest.mark.parametrize("app_env", ["production", "staging"])
+def test_audit_demo_is_disabled_outside_local(monkeypatch, app_env):
+    monkeypatch.setenv("APP_ENV", app_env)
+    response = TestClient(create_app()).get("/audit-demo")
+    assert response.status_code == 404
+    assert "events" not in response.text
+
+
 def test_audit_demo_does_not_reflect_live_activity(client):
     before = client.get("/audit-demo").json()["events"]
     client.get("/health")

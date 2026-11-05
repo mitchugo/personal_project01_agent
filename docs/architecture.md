@@ -34,8 +34,8 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 | C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Dev fixture implemented + unit-tested (Session 2); not wired to the API |
 | C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Planned |
 | C4 | Model adapter | Single interface to a model provider | Planned (no provider connected) |
-| C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Planned |
-| C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | Planned |
+| C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Implemented + tested for 2 tools (Session 4); not reachable over HTTP yet; see §11 |
+| C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | `read_customer`, `update_customer` implemented + tested (Session 4); others planned |
 | C7 | Data store (SQLite) | Tenant-scoped synthetic data | Schema + fixtures implemented + tested (Session 2); see §8 |
 | C8 | KB retrieval | Tenant-scoped document search; results returned as **data** | Planned |
 | C9 | Approval service | Records refund requests; requires a verified supervisor decision | Planned |
@@ -119,7 +119,10 @@ Every decision in steps 6–8, allowed or denied, is written to the audit log (C
 | TB5 | Human approver → Approval service | Approve/reject decisions | Forged or self-approval |
 | TB6 | Application → Audit log | Event records | Leakage of secrets or personal data into logs |
 
-## 7. Permission matrix (documentation only — not enforced yet)
+## 7. Permission matrix
+
+> **Enforcement status (Session 4):** `read_customer` and `update_customer` rows are enforced in
+> code by [app/authz.py](../app/authz.py) and tested. All other rows are documentation only.
 
 > **Decision record:** matrix approved by the project owner on 2026-11-05, including:
 > tenant admins have no customer-data access; support agents may update contact fields only;
@@ -140,7 +143,8 @@ Each tenant has three fixture users, one per role:
 | Action | support_agent | supervisor | tenant_admin |
 |---|---|---|---|
 | `read_customer` | ✅ | ✅ | ❌ |
-| `update_customer` | ⚠️ contact fields only (email, phone, address) | ✅ contact + policy-note fields | ❌ |
+| `update_customer` | ⚠️ contact fields only (email, phone, address) | ⚠️ contact fields only today; `policy_note` approved but **not yet enabled** | ❌ |
+| Use the `/chat` interface | ✅ | ✅ | ✅ chat access only; business tools still follow this matrix (decision 2026-11-05) |
 | `search_kb` | ✅ | ✅ | ✅ |
 | `draft_email` | ✅ draft only, never sends | ✅ draft only, never sends | ❌ |
 | `request_refund` (create pending request) | ✅ | ✅ | ❌ |
@@ -247,7 +251,7 @@ app/identity/
 |---|---|---|
 | `GET /health` | No | `{"status": "ok"}`, no data |
 | `POST /chat` | **Yes** (dev fixture) | Strict `ChatRequest {message}`; returns a fixed "agent runtime is not connected" reply plus the server-derived `acting_as` principal |
-| `GET /audit-demo` | No | Returns the constant `DEMO_EVENTS` from `app/audit.py`. There is no code path to the live audit log |
+| `GET /audit-demo` | No | Returns the constant `DEMO_EVENTS` from `app/audit.py`. There is no code path to the live audit log. Returns 404 unless `APP_ENV=local` (or unset). Must **never** expose real audit records; it stays unauthenticated only while it serves fixed demo data |
 
 ### 10.2 HTTP trust boundary (TB1)
 
@@ -294,6 +298,49 @@ prompts, headers and records cannot be logged through this path. A `/chat` reque
 | Tenant/role taken only from the database, never the client or chat text | Implemented + tested (at the identity boundary) |
 | Same generic 401 for every identity failure (no user enumeration) | Implemented + tested |
 | Real authentication | **Planned — not started** |
-| Tenant-scoped data access / tool gateway / permission matrix enforcement | **Planned — not started** |
+| Tenant-scoped data access / tool gateway / permission matrix enforcement | **Implemented + tested for `read_customer` / `update_customer` (Session 4, §11)**; not exposed over HTTP; other tools planned |
 | Persistent, tamper-evident audit store; access control for live audit data | **Planned — not started** |
 | Rate limiting, request size limits at the server level | **Planned — not started** |
+
+## 11. Tool gateway and CRM tools (Session 4)
+
+### 11.1 Call path
+
+```
+raw tool call (tool_name, raw_args)          <- untrusted (future LLM output)
+  -> app/gateway.py  execute_tool(conn, principal, correlation_id, tool_name, raw_args)
+       1. registered tool name?                    no  -> invalid  (audit: rejected, unknown_tool)
+       2. strict Pydantic args (extra=forbid,      bad -> invalid  (audit: rejected, invalid_arguments)
+          strict, patterns, immutable-field check)
+  -> tools/customers.py  read_customer / update_customer   (also safe to call directly)
+       3. app/authz.py authorize(principal.role, action, fields)   deny -> denied   (before any DB access)
+       4. app/customer_repo.py  ... WHERE customer_id = ? AND tenant_id = ?   (tenant from Principal)
+                                                    0 rows -> not_found (missing OR other tenant)
+       5. audit tool.invoke (tool, decision, reason, resource_id, field NAMES)
+  -> ToolResult {tool, status: ok | not_found | denied | invalid, data?, errors?}
+```
+
+Not exposed through any HTTP route yet. Callers are tests and, later, the agent runtime.
+
+### 11.2 Tools
+
+| Tool | Arguments | Success response | Notes |
+|---|---|---|---|
+| `read_customer` | `customer_id` | Customer view: id, name, contact fields, policy number/type/note (no `tenant_id`) | — |
+| `update_customer` | `customer_id`, `changes{email?, phone?, address?}` | `{customer_id, updated_fields: [names]}`; new values not echoed | Single parameterised `UPDATE` in a transaction |
+
+Value rules (lab guardrails that keep data synthetic): email must be lowercase with a reserved domain; phone
+must be in `07700 900xxx`; address 5–200 characters with no control characters. `customer_id`, `tenant_id` and `policy_number` in
+`changes` are rejected as `immutable_field`; any other non-contact field is rejected as `extra_forbidden`.
+
+### 11.3 Response semantics
+
+| Situation | Result | Audit outcome / reason |
+|---|---|---|
+| Permitted, record in caller's tenant | `ok` | `success` / `allowed` |
+| Record missing **or** in another tenant | `not_found` (identical) | `denied` / `not_found_in_tenant` |
+| Role not permitted (e.g. `tenant_admin`) | `denied` (identical for every ID; no DB query) | `denied` / `role_not_permitted` |
+| Bad arguments, unknown tool, `tenant_id`/`role` supplied | `invalid` + field locations/types | `rejected` / `invalid_arguments` or `unknown_tool` |
+
+Design trade-off: to keep every customer query tenant-scoped, the system does not check whether a
+`not_found` ID exists in another tenant, so cross-tenant probing can't yet be told apart from typos in the audit log.

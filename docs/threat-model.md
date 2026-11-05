@@ -56,6 +56,11 @@ Unless the **Status updates** table below says otherwise, every row is **Control
 | T-11, T-17 | 3 | HTTP dev selector fails closed for unset/other `IDENTITY_MODE` and any non-local `APP_ENV`, before touching the database. Tested. | Still not authentication. Anyone who can reach a local-mode server can act as any fixture user. |
 | T-15 | 3 | Server-generated uuid4 correlation IDs; client-supplied header ignored. Tested. | — |
 | T-16 | 3 | Generic 500 with correlation ID; no traceback or exception message in responses; 422 omits input. Tested. | Exception class name is logged server-side; tracebacks at DEBUG only. |
+| T-01 | 4 | **Implemented + tested for `read_customer`/`update_customer`:** argument models have no identity fields; supplied `tenant_id`, `role`, `user_id` or `principal` are rejected before any DB access; the tenant comes only from `Principal`. | Other tools not built. Not reachable via HTTP/LLM yet, so not tested end-to-end. |
+| T-02 | 4 | **Implemented + tested:** central policy (`app/authz.py`, default deny) enforces the read/update rows of the matrix; field allow-list per role; immutable fields rejected. | Applies to two tools only. |
+| T-05 | 4 | **Implemented + tested:** every customer `SELECT`/`UPDATE` is `WHERE customer_id = ? AND tenant_id = ?`; cross-tenant read/update returns `not_found`, identical to a missing ID; target row unchanged; a test records every statement and checks scoping and parameter binding. Mutation check: removing the tenant filter fails 6 tests. | Concurrency, other tables and future queries are not covered. |
+| T-06 | 4 | Partially: update responses return field names only; reads omit `tenant_id`; audit records field names, never values. | Reads still return the full contact view; no role-based masking or "minimum necessary" review yet. |
+| T-07 | 4 | `tool.invoke` events record tool, decision, reason, resource ID and field names. Tests check that names, emails, phones, addresses, policy numbers and attempted new values never appear in logs. | See limitations: logging controls still to verify before any deployment. |
 
 ## 3. Security assumptions
 

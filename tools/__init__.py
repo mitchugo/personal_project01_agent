@@ -1,9 +1,11 @@
-"""Agent tools (not implemented).
+"""Agent tools.
 
-Planned: read_customer, update_customer, search_kb, draft_email, request_refund.
+Implemented: read_customer, update_customer (tools/customers.py).
+Planned: search_kb, draft_email, request_refund.
 
-Design rule (see docs/decisions/ADR-001.md): tool functions must never accept
+Design rule (see docs/decisions/ADR-001.md): tool functions never accept
 tenant_id or user identity as arguments supplied by the model. Identity comes
-from trusted server-side context, and every call passes an explicit
-authorisation check before it touches data.
+from the trusted server-side Principal, and every call passes an explicit
+authorisation check (app/authz.py) before it touches data. Untrusted callers go
+through app/gateway.py.
 """

@@ -10,7 +10,7 @@ There is no LLM, tool gateway or customer CRUD. See docs/limitations.md.
 
 import os
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -64,7 +64,13 @@ def chat(
 
 @router.get("/audit-demo", response_model=AuditDemoResponse)
 def audit_demo() -> AuditDemoResponse:
-    """Example audit events. Constant data; has no access to live audit logs."""
+    """Example audit events. Constant data; has no access to live audit logs.
+
+    Unauthenticated, so it must only ever return fixed, non-sensitive demo events,
+    never real audit records. Disabled (404) outside local development.
+    """
+    if os.environ.get("APP_ENV", "local") != "local":
+        raise HTTPException(status_code=404, detail="Not Found")
     return AuditDemoResponse(
         notice="Synthetic example events for demonstration. Not live audit data.",
         events=list(DEMO_EVENTS),

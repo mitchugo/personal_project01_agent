@@ -78,3 +78,32 @@ A running record of what was learned each session. Keep entries short and honest
 
 **Next session**
 - Tool gateway: tenant-scoped repository functions and permission-matrix enforcement, with deterministic authorisation tests (including the attack fixtures).
+
+## Session 4 — 2026-11-05 — Tool gateway, read_customer and update_customer
+
+**Decisions (project owner)**
+- Tenant admins may use `/chat`, but business tools follow the matrix; chat access does not grant customer access.
+- `/audit-demo` stays unauthenticated only while it serves fixed demo events; now 404 outside local.
+- Logging hardening points recorded as controls to verify later, not as evidence (see limitations).
+
+**Done**
+- `app/authz.py`: central default-deny policy (role → action, role → updatable fields).
+- `app/customer_repo.py`: every query `WHERE customer_id = ? AND tenant_id = ?`, tenant from `Principal`.
+- `tools/customers.py`: strict argument models, immutable-field rejection, synthetic-value guardrails, minimal results.
+- `app/gateway.py`: registered tools only, raw-argument validation, audit of rejected calls.
+- `tool.invoke` audit events; suite went from 108 to 175 passing tests.
+
+**Learned / reinforced**
+- **Order matters:** validate → authorise role → touch the database. A role denial before any query means
+  the response can't reveal whether a record exists.
+- **Scoping the query is the isolation control.** With `AND tenant_id = ?` in the SQL, another tenant's row
+  never comes back, so there's no "check ownership after loading" step that someone could forget.
+- **Non-disclosure has a cost:** with every query scoped, "missing" and "other tenant's" look the same, even in the audit log.
+- **Test the tests.** All new tests passed first time, so I planted two bugs (unscoped query, admin
+  granted read access). They caused 6 and 4 failures, which shows the tests would catch these regressions.
+- Recording `(sql, params)` through a wrapper connection gives direct evidence of parameterisation.
+  (Python's trace callback shows the SQL with values filled in, so it can't prove the opposite.)
+
+**Next session**
+- Decide how the agent runtime calls the gateway, then `search_kb` with tenant-scoped retrieval and
+  untrusted-content handling, using attack fixture `ns-kb-004`.

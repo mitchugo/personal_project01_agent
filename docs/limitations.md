@@ -2,16 +2,25 @@
 
 Read this before drawing conclusions from the project.
 
-## Current state (Session 3)
+## Current state (Session 4)
 
-- **Tenant isolation is NOT enforced at the API or tool layer.** The database rejects cross-tenant
-  *references* (composite foreign keys), but nothing yet constrains what data a principal can
-  *read or change*. Isolation depends on the tool gateway and tenant-scoped queries, which do not exist yet.
+- **Tenant isolation is enforced for two tools only.** `read_customer` and `update_customer` scope
+  every query by `customer_id` and the principal's tenant, and their tests pass. Tickets, KB documents
+  and future tools have no such enforcement yet, and the tools are **not reachable over HTTP or by an LLM**,
+  so nothing has been tested end-to-end.
+- **These tests don't prove the application is secure.** They cover the listed cases at
+  the function level, plus two deliberate mutation checks. Concurrency, other tables, future
+  code paths and real LLM behaviour are untested.
+- **Cross-tenant probing isn't distinguishable** from mistyped IDs in the audit log (§11.3 trade-off).
+- **Supervisor `policy_note` updates** are approved in the matrix but not yet enabled.
+- **Validation of new values is a lab guardrail** (reserved domains, fiction phone range), not production-grade validation.
 - **There is no real authentication.** `POST /chat` uses the dev selector header `X-Dev-User-Id`.
   It is not a credential, and it works only with `IDENTITY_MODE=local-fixture` and `APP_ENV=local`.
   **Never enable it in a deployed or network-reachable environment.**
 - **`/chat` does nothing.** It returns a fixed "agent runtime is not connected" reply. No LLM,
   tools or customer data are involved, so the tests prove HTTP-boundary behaviour only.
+- **`/audit-demo` is unauthenticated** and returns 404 outside `APP_ENV=local`. It must never be
+  changed to return real audit records.
 - **The audit log goes to stderr only.** It isn't persisted, rotated, protected or tamper-evident.
   `/audit-demo` serves constant synthetic events; there is no authorised way to view live audit data yet.
 - **Third-party loggers can include query strings:** uvicorn's access log and (in tests) httpx's
@@ -50,3 +59,13 @@ Read this before drawing conclusions from the project.
 
 - The threat model is an initial draft by one author and has not been peer-reviewed.
 - Passing tests show a control works for the tested cases only. They do not prove absence of bypasses.
+
+## Logging controls to verify before any deployment
+
+`--no-access-log` is a local safeguard only. It doesn't make logging secure. Verify these later:
+
+1. Never place credentials, tokens or personal information in query parameters (API design rule).
+2. Never log full prompt bodies, chat text or customer records (currently enforced only for the
+   app's own audit events via the metadata allow-list).
+3. Review HTTP client, reverse-proxy, load-balancer and exception/APM logging independently of the app.
+4. Make sure deployment configuration cannot enable `IDENTITY_MODE=local-fixture` and sets `APP_ENV` to a non-local value.

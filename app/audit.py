@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 audit_logger = logging.getLogger("audit")
 audit_logger.setLevel(logging.INFO)
 
-EventType = Literal["http.request", "identity.resolve", "chat.message"]
+EventType = Literal["http.request", "identity.resolve", "chat.message", "tool.invoke"]
 # success: allowed and completed | denied: identity/authorisation refused
 # rejected: invalid client input | error: server-side failure
 Outcome = Literal["success", "denied", "rejected", "error"]
@@ -33,6 +33,10 @@ ALLOWED_METADATA_KEYS = frozenset(
         "identity_source",  # e.g. "local-fixture"
         "message_length",   # length of chat text - never the text itself
         "agent_connected",
+        "tool",             # registered tool name, or "unknown"
+        "decision",         # "allow" | "deny"
+        "resource_id",      # validated record ID (pseudonymous), never record contents
+        "fields",           # comma-separated field NAMES, never values
     }
 )
 
