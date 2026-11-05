@@ -1,6 +1,8 @@
 # Architecture
 
-> **Status:** Design only (Session 1). Apart from the `/health` endpoint, every component
+> **Status (Session 7 baseline, tag `v0-baseline`):** C1–C10 are implemented except real authentication,
+> a persistent audit store and the tenant-admin user-management path. See the component table and §8–§13.
+> *Original Session 1 note, kept for history:* Design only (Session 1). Apart from the `/health` endpoint, every component
 > below is **planned, not implemented**. Control status values are used throughout:
 > **Planned → Implemented → Tested**. Today every control is *Planned*.
 
@@ -30,7 +32,7 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 
 | # | Component | Responsibility | Status |
 |---|---|---|---|
-| C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health`, `/chat` (agent not connected), `/audit-demo` — Session 3; see §10 |
+| C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health`, `/audit-demo` (Session 3); `/chat` with the Claude agent when `AGENT_PROVIDER=anthropic`, else a fixed reply (Session 6); see §10, §13 |
 | C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Dev fixture implemented + unit-tested (Session 2); not wired to the API |
 | C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Implemented + mock-tested (Session 6, `app/agent/runtime.py`); see §13 |
 | C4 | Model adapter | Single interface to a model provider | Implemented (Session 6): Anthropic Claude via `anthropic==2.5.0`; offline-transport tested; live runs pending |
@@ -216,7 +218,8 @@ Rules for every future query issued on behalf of a principal:
 4. Lists and searches (`search_kb`) are always filtered by `tenant_id` before ranking.
 5. All values are bound parameters; table and column names come only from code constants.
 
-These will be enforced and tested in the tool-gateway session. Until then, **tenant isolation is not enforced by the application.**
+*Update (Sessions 4–5):* these rules are now enforced in `app/customer_repo.py`, `app/kb_repo.py`,
+`app/email_repo.py` and `app/refund_repo.py`, and tested for all five tools. Tickets still have no access path.
 
 ### 8.4 Identity: dev fixture vs. future production authentication
 
@@ -301,7 +304,7 @@ prompts, headers and records cannot be logged through this path. A `/chat` reque
 | Tenant/role taken only from the database, never the client or chat text | Implemented + tested (at the identity boundary) |
 | Same generic 401 for every identity failure (no user enumeration) | Implemented + tested |
 | Real authentication | **Planned — not started** |
-| Tenant-scoped data access / tool gateway / permission matrix enforcement | **Implemented + tested for `read_customer` / `update_customer` (Session 4, §11)**; not exposed over HTTP; other tools planned |
+| Tenant-scoped data access / tool gateway / permission matrix enforcement | **Implemented + tested for all 5 tools** (Sessions 4–5, §11–12); reachable via `/chat` through the agent (Session 6, §13) |
 | Persistent, tamper-evident audit store; access control for live audit data | **Planned — not started** |
 | Rate limiting, request size limits at the server level | **Planned — not started** |
 
@@ -484,3 +487,15 @@ before any model call.
 Requests go to the Claude API under the account's default retention settings (not zero-data-retention).
 All content is synthetic. Before any non-synthetic use, confirm the organisation's retention and
 data-processing terms.
+
+## 14. Baseline `v0-baseline` (Session 7)
+
+The architecture above was reviewed end to end and frozen as the pre-attack baseline.
+
+- Verified path: `POST /chat → dev identity (Principal) → AgentRuntime → AnthropicProvider (claude-sonnet-5-5, fallback off)
+  → gateway → authz → tenant-scoped repository → SQLite → ChatResponse (+ server action record)`, deterministically
+  (`tests/test_e2e_http.py`, real SDK client over a mock transport) and live (3 requests through uvicorn).
+- One correlation ID links `identity.resolve`, `agent.model_call`, `tool.invoke`, `agent.tool_proposal`,
+  `agent.run`, `chat.message` and `http.request` for each request.
+- Control status matrix, configuration and versions: [evidence/runs/session-07-baseline/](../evidence/runs/session-07-baseline/README.md).
+- Next phase: attack campaigns A01–A08 ([attacks/specs/](../attacks/specs/README.md)).

@@ -96,3 +96,12 @@ Read this before drawing conclusions from the project.
    app's own audit events via the metadata allow-list).
 3. Review HTTP client, reverse-proxy, load-balancer and exception/APM logging independently of the app.
 4. Make sure deployment configuration cannot enable `IDENTITY_MODE=local-fixture` and sets `APP_ENV` to a non-local value.
+
+## Baseline `v0-baseline` (Session 7): remaining risks
+
+- **No production authentication or deployment controls.** No real auth, TLS, rate limiting, secrets manager,
+  network isolation, persistent or tamper-evident audit store, or monitoring. Localhost lab only.
+- **Model behaviour is evidence, not a control.** 11 live single samples (S6: 8, S7: 3). No rates measured.
+- **Uncontrolled within-permission misuse** (T-22), **stored injection** (T-23), **draft redirection via contact
+  update** (T-24) and **content exfiltration via drafts/fields** (T-25) are documented but untested. See attack specs A01, A03, A06 and A08.
+- The live S7 runs used the HTTP path with a real server; the 8 S6 runs called the runtime directly.

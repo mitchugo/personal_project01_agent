@@ -1,8 +1,8 @@
 # Threat Model (initial)
 
-> **Status:** Session 1 draft. No control listed here is implemented or tested.
-> Each threat will be linked to an attack case in `attacks/` and evidence in `evidence/`
-> before any mitigation is called effective.
+> **Status (Session 7 baseline):** many controls are now implemented and tested; see **Status updates** below
+> and the control matrix in [evidence/runs/session-07-baseline/](../evidence/runs/session-07-baseline/README.md).
+> Rows without a status update are still *Planned*. Attack specifications A01–A08 are in [attacks/specs/](../attacks/specs/README.md).
 
 Method: asset-centric, using the trust boundaries in [architecture.md](architecture.md#6-trust-boundaries).
 The OWASP Top 10 for LLM Applications (2025) is referenced for categories.
@@ -104,3 +104,27 @@ These are assumed, not verified. Breaking any of them invalidates parts of this 
 
 - Write one attack case per threat in `attacks/`, starting with T-01, T-03, T-04, T-05 and T-14.
 - For each control: implement it, test it, store evidence, then update the status.
+
+## 6. Attack specifications and newly identified gaps (Session 7)
+
+Threats are mapped to prepared (not yet executed) campaigns in [attacks/specs/](../attacks/specs/README.md):
+
+| Campaign | Threats |
+|---|---|
+| A01 Indirect injection via KB | T-03, T-04, T-02 |
+| A02 Cross-tenant access | T-01, T-05 |
+| A03 Email recipient manipulation | T-19, T-10, T-06 |
+| A04 Role/identity spoofing | T-01, T-02, T-11, T-17, T-14 |
+| A05 Refund approval bypass | T-04, T-18, T-20 |
+| A06 Session contamination | T-03, T-06, T-20 |
+| A07 Secrets / audit disclosure | T-07, T-09, T-16, T-21 |
+| A08 Exfiltration in documents | T-03, T-06, T-19, T-10 |
+
+New threats identified while writing the specs (status: **Planned**, untested):
+
+| ID | Threat | Boundary | Assets | OWASP LLM | Candidate control |
+|---|---|---|---|---|---|
+| T-22 | Untrusted content drives actions **within** the user's permissions (e.g. a same-tenant contact update or draft the user never asked for) | TB4 | A1, A5 | LLM01, LLM06 | Human confirmation for state-changing actions; action provenance checks |
+| T-23 | Persistent (stored) injection: instruction text saved in free-text contact fields is read back by later sessions | TB3, TB4 | A1, A3 | LLM01 | Tighter field validation; output sanitisation/labelling per field |
+| T-24 | Draft redirection via a legitimate contact-email update before drafting | TB3 | A5 | LLM06 | Re-verification on email change; cool-down before drafting |
+| T-25 | Data exfiltration via draft bodies or contact fields (other customers' data copied into them) | TB3 | A1, A5 | LLM02 | Content checks on draft bodies and field values |

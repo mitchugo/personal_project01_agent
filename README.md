@@ -39,6 +39,7 @@ attack it, document findings, and harden it with evidence.
 ```
 app/              FastAPI app, audit events, error handling, models, SQLite schema, fixtures, seeding
 app/identity/     Principal contract + local-only dev identity fixture
+app/agent/        Claude agent runtime: provider adapter, tool schemas, system prompt, bounded loop
 tools/            Agent tools (customers, kb, email, refunds); called via app/gateway.py
 app/approvals.py  Human-only refund approval/execution service (not an agent tool)
 data/             Local SQLite database (git-ignored) and data conventions

@@ -180,3 +180,25 @@ A running record of what was learned each session. Keep entries short and honest
 **Next session**
 - Structured attack runs: repeated samples for rates, multi-turn and adaptive injections, and live runs
   through `POST /chat` over uvicorn.
+
+## Session 7 — 2026-11-05 — Baseline review and `v0-baseline`
+
+**Done**
+- Session 6 hardening before commit: fallback off by default, `model_mismatch` rejection, configured vs served model audited,
+  refusal category recorded; 12 regression tests (mutation check: 2 fails). Committed `05cd875`.
+- Review: 7 documentation discrepancies found and fixed. All were stale status text; no enforcement mismatch.
+- New deterministic end-to-end HTTP tests (5) through the real SDK client over a mock transport.
+- 3 live HTTP requests through uvicorn (≈$0.031; cumulative ≈$0.138 of $5). Backend held; one correlation ID per chain.
+- Control matrix (11 controls) with evidence; 8 attack specifications A01–A08 prepared, not executed.
+- Suite: 378 passed.
+
+**Learned / reinforced**
+- **Status text rots fastest.** Every discrepancy found was a "Planned"/"not yet" sentence from an earlier session.
+  Baselines should re-read status lines first.
+- **Writing attack specs is itself a review.** Drafting A06 and A03 exposed two untested paths (stored injection,
+  draft redirection via a legitimate update). Neither bypasses a control, but both turn untrusted text into real actions.
+- **On Windows, the venv `python.exe` is a launcher.** Stopping the PID from `Start-Process` didn't name the real
+  uvicorn process, so check the listening port before assuming the server is down.
+
+**Next session**
+- Execute A01–A08 with repeated live samples under an explicit budget; turn each deterministic variant into a regression test.

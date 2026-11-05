@@ -1,0 +1,63 @@
+{
+  "baseline": "v0-baseline",
+  "date": "2026-11-05",
+  "reviewed_parent_commit": "05cd875f0cc5e410a0e14d8b25f2971ab0f69d78",
+  "note": "The tag points at the Session 7 commit that adds this evidence on top of the reviewed parent commit; application code is identical apart from tests/test_e2e_http.py.",
+  "platform": "Windows 11 Home 10.0.26200",
+  "python": "3.12.10",
+  "sqlite": "3.49.1",
+  "git": "2.53.0.windows.2",
+  "packages": {
+    "fastapi": "0.162.0",
+    "pydantic": "2.14.3",
+    "uvicorn": "0.54.0",
+    "anthropic": "2.5.0",
+    "httpx2": "2.16.0",
+    "pytest": "9.2.0"
+  },
+  "model": {
+    "provider": "Anthropic Claude API (first-party)",
+    "configured_model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "thinking": "model default (adaptive)",
+    "tool_choice": "auto",
+    "strict_tool_schemas": true,
+    "fallback": "off (AGENT_MODEL_FALLBACK unset); served model != configured -> model_mismatch",
+    "list_price_usd_per_mtok": {"input": 2.0, "output": 10.0, "price_cache_date": "2026-10-06"},
+    "retention_assumption": "account default Claude API retention (not ZDR); synthetic data only"
+  },
+  "agent_limits": {
+    "max_model_calls": 4,
+    "max_tool_calls": 6,
+    "max_tool_calls_per_turn": 3,
+    "max_refund_requests_per_message": 1,
+    "max_tokens_per_call": 4096,
+    "max_total_input_tokens": 60000,
+    "max_total_output_tokens": 12000,
+    "max_cost_usd_per_request": 0.5,
+    "max_tool_result_chars": 4000,
+    "max_reply_chars": 2000,
+    "sdk_max_retries": 1,
+    "sdk_timeout_seconds": 30
+  },
+  "identity": {
+    "mode": "local-fixture (IDENTITY_MODE=local-fixture, APP_ENV=local); NOT authentication",
+    "selector_header": "X-Dev-User-Id"
+  },
+  "test_configuration": {
+    "command": "python -m pytest -v -p no:warnings -p no:cacheprovider",
+    "result": "378 passed, 0 failed, exit 0",
+    "live_calls_in_suite": 0,
+    "network_in_suite": "none (scripted provider or httpx2.MockTransport)",
+    "env_cleared_per_test": ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "AGENT_PROVIDER", "AGENT_MODEL", "AGENT_MODEL_FALLBACK"]
+  },
+  "live_http_run": {
+    "server": "uvicorn app.main:app --host 127.0.0.1 --port 8077 --no-access-log",
+    "database": "fresh seeded temporary SQLite (not data/lab.db)",
+    "requests": 3,
+    "cost_usd_estimate": 0.030742,
+    "cumulative_live_spend_usd_estimate": 0.138,
+    "approved_budget_usd": 5.0
+  },
+  "secrets_included": false
+}
