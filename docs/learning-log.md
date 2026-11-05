@@ -133,3 +133,50 @@ A running record of what was learned each session. Keep entries short and honest
 **Next session**
 - Agent runtime design: how model output reaches the gateway, how untrusted tool output is framed in prompts,
   then attack sessions with `mc-tkt-005` and `ns-kb-004`.
+
+## Session 6 — 2026-11-05 — LLM integration (mock-tested + 8 live runs)
+
+**Decisions (project owner)**
+- Approved dependency `anthropic==2.5.0`; model **Claude Sonnet 5.5** (`claude-sonnet-5-5`, $2/$10 per MTok);
+  live-test budget up to $5.
+
+**Done**
+- Provider adapter (`app/agent/`): a provider-neutral interface plus the only SDK-importing module. SDK calls
+  were checked against the official skill docs and the installed SDK's signatures.
+- Manual, bounded tool-calling loop. Every proposed call goes through `gateway.execute_tool` with the
+  HTTP Principal. Limits on model calls, tool calls, refunds, tokens, cost, sizes and time.
+- `/chat` integration: identity first, agent second; 503 when misconfigured; original behaviour when off.
+- Audit: `agent.model_call`, `agent.tool_proposal` (proposed) vs `tool.invoke` (executed), `agent.run`.
+- Suite went from 295 to 361 passing tests. Mutation checks (removing the refund-per-request limit and the untrusted
+  wrapper) caused 4 failures.
+- Live test script with spend guardrails, run once with 8 scenarios plus 1 smoke request, about $0.107 in total.
+  All backend invariants held, and the model refused all three injection exposures.
+
+**Learned / reinforced**
+- **The model's words aren't the system's record.** In a mock run the "model" claimed a £5,000 refund
+  was approved while the backend had blocked everything (F-001). The structured `actions` list was right, but
+  the reply text was wrong, so the reply now always ends with a server-generated record.
+- **Offline transport tests are worth a lot.** Running the real SDK against `httpx2.MockTransport` checks
+  request shape, error mapping and key hygiene without spending money or depending on the network.
+- **Order dependencies by trust.** Identity is resolved before the agent dependency, so unauthenticated callers
+  can't tell whether the agent is configured.
+- **Retries need sorting by side effect.** Retrying a model call is safe (no backend effect). Retrying a tool is not,
+  so the loop never does.
+- **Strict tool schemas can't carry length or pattern rules.** Validation stays in the gateway's Pydantic models,
+  which see every call whatever the schema says.
+- **Smoke-test before batch-testing.** One ~$0.01 live call confirmed that the request shape was accepted before
+  all 8 scenarios ran.
+- **Test scripts have bugs too.** The live run first reported a cross-tenant draft. It was my invariant check
+  comparing `"no"` with `"ns"`. Checking the recorded DB state settled it without re-spending, and the
+  correction is kept in the evidence rather than overwritten.
+- **Fallbacks are visible only if you record the served model.** One live request was answered by
+  `claude-sonnet-5` after Sonnet 5.5 declined; logging `response.model` is what made that visible.
+  Post-review, fallback is off by default, a different served model is rejected before tools run, and
+  configured and served models are audited separately. The refusal category wasn't captured, which is a lesson
+  in itself: record `stop_details` from the start.
+- **A model that "behaves well" doesn't make the system secure.** In the forged-identity run the model still
+  attempted the cross-tenant update as asked. Tenant scoping in SQL is what stopped it.
+
+**Next session**
+- Structured attack runs: repeated samples for rates, multi-turn and adaptive injections, and live runs
+  through `POST /chat` over uvicorn.

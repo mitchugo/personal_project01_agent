@@ -9,15 +9,19 @@ There is no LLM, tool gateway or customer CRUD. See docs/limitations.md.
 """
 
 import os
+from contextlib import closing
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.agent.factory import get_agent_runtime
+from app.agent.runtime import AgentRuntime
 from app.audit import DEMO_EVENTS, emit
+from app.db import connect
 from app.errors import ErrorResponse, http_exception_handler, validation_exception_handler
 from app.identity import Principal
-from app.identity.http_dev import get_dev_principal
+from app.identity.http_dev import get_db_path, get_dev_principal
 from app.observability import configure_logging, correlation_middleware
 from app.schemas import AuditDemoResponse, ChatRequest, ChatResponse
 
@@ -37,18 +41,38 @@ def health() -> dict[str, str]:
 @router.post(
     "/chat",
     response_model=ChatResponse,
-    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    response_model_exclude_none=True,
+    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
 )
 def chat(
     body: ChatRequest,
     request: Request,
-    principal: Principal = Depends(get_dev_principal),
+    principal: Principal = Depends(get_dev_principal),          # resolved FIRST: unauthenticated callers
+    runtime: AgentRuntime | None = Depends(get_agent_runtime),  # never learn agent configuration
 ) -> ChatResponse:
-    """Accept a chat message. The agent is not connected, so the reply is fixed.
+    """Chat with the support agent.
 
-    The message text is not interpreted, echoed or logged - only its length is audited.
+    Agent off (AGENT_PROVIDER unset): fixed "not connected" reply, as before.
+    Agent on: bounded tool-calling loop; every tool call goes through the gateway
+    with this request's trusted Principal. The message text is never logged.
     """
     correlation_id = request.state.correlation_id
+    if runtime is not None:
+        db_path = get_db_path()
+        if not db_path.exists():
+            raise RuntimeError("database not found")  # generic 500; path not disclosed
+        with closing(connect(db_path)) as conn:
+            result = runtime.run(conn, principal, correlation_id, body.message)
+        emit(
+            "chat.message", correlation_id, "success",
+            actor_user_id=principal.user_id, tenant_id=principal.tenant_id,
+            message_length=len(body.message), agent_connected=True,
+        )
+        return ChatResponse(
+            correlation_id=correlation_id, reply=result.reply, agent_connected=True,
+            acting_as=principal, actions=result.actions, termination=result.termination,
+        )
+
     emit(
         "chat.message", correlation_id, "success",
         actor_user_id=principal.user_id, tenant_id=principal.tenant_id,

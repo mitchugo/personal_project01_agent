@@ -22,6 +22,9 @@ def configure_logging(level: str = "INFO") -> None:
     Nothing in this application logs request bodies, headers or query strings.
     """
     logging.basicConfig(level=level.upper(), format="%(message)s")
+    # Third-party HTTP/SDK loggers can record full URLs or request details at INFO/DEBUG.
+    for noisy in ("anthropic", "httpx", "httpx2", "httpcore", "httpcore2"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def _outcome(status_code: int) -> Outcome:

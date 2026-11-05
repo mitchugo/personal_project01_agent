@@ -21,6 +21,7 @@ audit_logger.setLevel(logging.INFO)
 EventType = Literal[
     "http.request", "identity.resolve", "chat.message", "tool.invoke",
     "refund.approval", "refund.execution",
+    "agent.model_call", "agent.tool_proposal", "agent.run",
 ]
 # success: allowed and completed | denied: identity/authorisation refused
 # rejected: invalid client input | error: server-side failure
@@ -46,6 +47,21 @@ ALLOWED_METADATA_KEYS = frozenset(
         "currency",
         "from_status",      # refund state transition
         "to_status",
+        # Session 6: agent runtime. Model text, prompts and tool arguments are never logged.
+        "model",            # model that SERVED the call (from the API response)
+        "configured_model", # model the application was configured to use
+        "refusal_category", # API stop_details category when the model declined
+        "latency_ms",
+        "input_tokens",
+        "output_tokens",
+        "cost_usd",         # approximate, from list prices
+        "stop_reason",
+        "iteration",        # 1-based model-call number within the request
+        "proposed_tool",    # registered tool name, or "unregistered" (raw name never logged)
+        "tool_status",      # backend outcome: ok | denied | not_found | invalid | conflict | skipped
+        "termination",
+        "model_calls",
+        "tool_calls",
     }
 )
 

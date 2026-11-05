@@ -1,6 +1,7 @@
 # Pinned to the versions already present in the local .venv (Session 1).
 # No model-provider SDKs are included on purpose.
 fastapi==0.162.0
+anthropic==2.5.0  # Session 6: official Claude SDK; imported only by app/agent/anthropic_provider.py
 pydantic==2.14.3
 uvicorn==0.54.0
 

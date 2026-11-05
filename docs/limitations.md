@@ -2,13 +2,29 @@
 
 Read this before drawing conclusions from the project.
 
-## Current state (Session 5)
+## Current state (Session 6)
 
-- **Five tools and a simulated approval service are enforced and tested at function level only.**
-  They are **not reachable over HTTP or by an LLM**, so nothing has been tested end-to-end. Tickets have
-  no tool and no tenant-scoped access path yet.
-- **Prompt injection is only partly addressed.** `search_kb` returns injected text as labelled untrusted data and
-  can't cause actions itself. How a real model reacts to that text is untested.
+- **The agent runs on Claude Sonnet 5.5 and is mostly mock-tested.** The automated suite uses a scripted model or
+  the real SDK with an offline transport. **Eight live runs** (≈$0.107, 2026-11-05) all held the backend
+  invariants. They are single samples, not rates, and none were adaptive multi-turn attacks. The live runs called the
+  runtime directly, not `/chat` over uvicorn.
+- **Model substitution is off by default.** During the Session 6 live run (with fallback enabled at the time) Sonnet 5.5
+  declined one request and `claude-sonnet-5` answered. Fallback is now opt-in (`AGENT_MODEL_FALLBACK=default`);
+  otherwise a refusal ends the request, and a response from any other model is rejected as `model_mismatch`.
+  The original refusal category is unknown because it wasn't recorded at the time.
+- **Backend controls are tested against an adversarial mock model, not a real one.** The tests show
+  that *if* a model proposes forged identity, cross-tenant or privileged actions, the backend refuses them.
+  How often a real model would try, and how it phrases outcomes, is unmeasured.
+- **Model text is untrusted output.** It can misreport outcomes (F-001). The reply always ends with a
+  server-generated action record, but the model's text above it can still be wrong.
+- **`/chat` is single-turn.** There is no conversation memory or server-side history.
+- **Costs are estimates** from cached list prices. No org-level spend limit is configured, and the $0.50
+  per-request cap is enforced after each model call, so one call can overshoot it before the loop stops.
+- **No streaming, no prompt caching.** Requests can take several seconds, and repeated system prompts are billed in full.
+- **Data retention:** requests use the account's default Claude API retention (not ZDR). Synthetic data only.
+- Tickets have no tool. Ticket text only reaches the model if a user pastes it in.
+- **One unexplained Windows access-violation report** from pytest's faulthandler during SQLite schema
+  creation, seen once and not reproduced in later clean runs (see the Session 6 evidence README). Root cause unknown.
 - **"Verified supervisor" means consistent with the synthetic users table.** It is not authentication.
   The approval service has no UI, HTTP route or step-up verification.
 - **Refunds:** simulated only (a status change plus a ledger row; no money, no payment integration). There's no

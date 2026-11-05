@@ -64,6 +64,13 @@ def table_snapshot(conn, *tables: str) -> dict:
 MUTABLE_TABLES = ("customers", "email_drafts", "refund_requests", "refund_ledger")
 
 
+@pytest.fixture(autouse=True)
+def no_live_model(monkeypatch):
+    """Tests never reach a real model: no credentials, agent runtime off unless a test injects a fake."""
+    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "AGENT_PROVIDER", "AGENT_MODEL", "AGENT_MODEL_FALLBACK"):
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture
 def db_path(tmp_path):
     path = tmp_path / "test.db"

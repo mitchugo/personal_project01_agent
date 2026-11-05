@@ -7,11 +7,10 @@ The goal is to build a small, local, multi-tenant customer support agent for two
 **fictional** insurance tenants — *Northstar Insurance* and *Meridian Cover* — and then
 attack it, document findings, and harden it with evidence.
 
-> **Status: Session 5 — five tools plus a simulated refund-approval service.**
-> `read_customer`, `update_customer`, `search_kb`, `draft_email` (drafts only) and `request_refund`
-> (pending only) enforce role permissions and tenant-scoped queries in code, and are tested at function level.
-> Refund approval and execution are a separate human-only service. Nothing is exposed over HTTP. There is still
-> no agent, no model provider, no money movement and **no real authentication**.
+> **Status: Session 6 — `/chat` can run a Claude-powered agent (mock-tested; live runs pending).**
+> The model proposes tool calls; the gateway validates and authorises every one with the server-side
+> identity. Refund approval/execution are not reachable by the agent. There is still no money movement
+> and **no real authentication** (local dev identity fixture only).
 > Never put credentials, tokens or personal data in query parameters.
 > **Tenant isolation is not yet enforced by the application.** See
 > [docs/limitations.md](docs/limitations.md).
@@ -74,6 +73,15 @@ Optionally run the app locally (dev identity fixture enabled, **local only, not 
 ```powershell
 $env:IDENTITY_MODE = "local-fixture"   # omit this and /chat fails closed with 401
 uvicorn app.main:app --reload --no-access-log
+```
+
+To use the Claude agent (costs money; synthetic data only), set the key as a real environment variable
+(never in a committed file), then:
+
+```powershell
+$env:AGENT_PROVIDER = "anthropic"          # unset = agent off, fixed reply
+$env:AGENT_MODEL = "claude-sonnet-5-5"
+# ANTHROPIC_API_KEY must already be set in your environment
 ```
 
 `--no-access-log` matters: uvicorn's access log records full URLs including query strings.

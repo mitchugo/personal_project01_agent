@@ -44,6 +44,8 @@ Unless the **Status updates** table below says otherwise, every row is **Control
 | T-17 | Dev user selector (`X-Dev-User-Id`) enabled in a deployed environment, letting anyone impersonate any user | TB1 | A1, A2 | — | Fails closed unless `IDENTITY_MODE=local-fixture` and `APP_ENV=local`; documented as not authentication |
 | T-18 | Refund approval replayed, double-approved, executed twice, or approved for a different amount/customer than requested | TB5 | A3 | LLM06 | CAS state transitions; approval bound to exact customer/amount/currency; `UNIQUE(refund_id)` ledger; idempotent execution |
 | T-19 | Email draft redirected to an attacker or another tenant's customer (recipient substitution, header injection) | TB2, TB3 | A1, A5 | LLM05, LLM06 | No recipient argument; address from tenant-scoped record; to/cc/bcc rejected; header-like lines rejected |
+| T-20 | Model reply misreports backend outcomes (e.g. claims a refund was approved) and misleads staff | TB2 | A3, A5 | LLM09 | Server-appended "Actions recorded by the system"; structured `actions` list from backend results |
+| T-21 | API key leaks via source, logs, responses or Git | — | A7 | LLM02 | Key read by SDK from env only; SDK errors mapped to fixed kinds; third-party loggers at WARNING |
 | T-14 | Tenant admin escalates privilege via role assignment (e.g. grants themselves supervisor to approve refunds, or reach customer data) | TB1 | A1, A3 | — | Admin functions on a separate, audited path; admin cannot change their own role; role changes audited |
 
 ### Status updates
@@ -68,6 +70,13 @@ Unless the **Status updates** table below says otherwise, every row is **Control
 | T-10 | 5 | Drafts only (schema has no sent state); header-like lines and control characters rejected. | No HTML/link sanitisation; no rendering exists yet. |
 | T-18 | 5 | **Implemented + tested:** replay, double approval, binding mismatch, execution without approval, idempotent re-execution and rollback on ledger failure/crash. Mutation check: removing status + binding checks fails 5 tests. | Single-process SQLite only. |
 | T-19 | 5 | **Implemented + tested:** 9 destination/send field variants and 5 header/multi-recipient tricks rejected; recipient always the customer on file. | A future send step must keep these guarantees. |
+| T-01, T-02, T-04 | 6 | **Mock-tested end-to-end through `/chat`:** a scripted model proposing forged `tenant_id`/`role`/approval arguments, cross-tenant reads, `approve_refund`/`execute_refund` and unregistered tools is stopped by the gateway; DB unchanged. | **Live-model behaviour not yet observed** (no API key available this session). |
+| T-03 | 6 | Tool results wrapped as `untrusted_data`; system prompt separates instructions from data; mock tests where the model *obeys* `ns-kb-004` / `mc-tkt-005` show backend controls hold. | Whether Sonnet 5.5 resists the injections is unmeasured until live runs. |
+| T-09 | 6 | System prompt contains no secrets or authorisation logic; assumed public. | — |
+| T-12 | 6 | **Implemented + mock-tested:** model-call, tool-call, per-turn, refund, token, cost, size and time limits. | Costs are estimates from list prices; no org-level spend cap configured. |
+| T-20 | 6 | **Found and mitigated** ([F-001](../evidence/findings/F-001-model-reply-misreports-actions.md)): server-appended action record. | The model's misleading sentence still appears above the record. |
+| T-01, T-03, T-04 | 6 (live) | **8 live runs on Claude Sonnet 5.5** (≈$0.107): all backend invariants held. Observed: the model recognised and refused all three injection exposures, never attempted approve/execute, and reported outcomes consistent with the backend. One request (forged identity) was served by the refusal fallback `claude-sonnet-5`. | Single samples, not rates; no adaptive/multi-turn attacks yet. |
+| T-21 | 6 | **Implemented + tested:** real SDK client run through `/chat` with an offline transport and a fake key; key absent from logs at DEBUG and from responses; misconfiguration returns a generic 503. | Operator environment hygiene (shell history, `ANTHROPIC_LOG`) is out of app control. |
 | T-07 | 4 | `tool.invoke` events record tool, decision, reason, resource ID and field names. Tests check that names, emails, phones, addresses, policy numbers and attempted new values never appear in logs. | See limitations: logging controls still to verify before any deployment. |
 
 ## 3. Security assumptions

@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.runtime import ActionRecord, Termination
 from app.audit import AuditEvent
 from app.identity import Principal
 
@@ -29,6 +30,10 @@ class ChatResponse(BaseModel):
     # Server-derived identity, shown so the caller can see who the server thinks
     # they are. identity_source makes clear this is a dev fixture, not real auth.
     acting_as: Principal
+    # Present only when the agent runtime is connected. Built from what the BACKEND
+    # did with each model-proposed tool call - never from the model's own claims.
+    actions: list[ActionRecord] | None = None
+    termination: Termination | None = None
 
 
 class AuditDemoResponse(BaseModel):

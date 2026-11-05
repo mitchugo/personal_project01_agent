@@ -32,8 +32,8 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 |---|---|---|---|
 | C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health`, `/chat` (agent not connected), `/audit-demo` — Session 3; see §10 |
 | C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Dev fixture implemented + unit-tested (Session 2); not wired to the API |
-| C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Planned |
-| C4 | Model adapter | Single interface to a model provider | Planned (no provider connected) |
+| C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Implemented + mock-tested (Session 6, `app/agent/runtime.py`); see §13 |
+| C4 | Model adapter | Single interface to a model provider | Implemented (Session 6): Anthropic Claude via `anthropic==2.5.0`; offline-transport tested; live runs pending |
 | C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Implemented + tested at function level for all 5 tools (Sessions 4–5); not reachable over HTTP yet; see §11–12 |
 | C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | All five implemented + tested at function level (Sessions 4–5); not exposed over HTTP or to an LLM |
 | C7 | Data store (SQLite) | Tenant-scoped synthetic data | Schema + fixtures implemented + tested (Session 2); see §8 |
@@ -413,3 +413,74 @@ user's permissions, and a refund still needs a human.
 reason, resource ID and, where relevant, `amount_pence`, `currency`, `from_status`, `to_status`,
 `result_count` and `body_length`. Never recorded: search queries, document text, email subject/body,
 recipient addresses, refund reasons.
+
+## 13. Agent runtime and LLM integration (Session 6)
+
+### 13.1 Components and call path
+
+```
+POST /chat  ──► get_dev_principal (FIRST; 401 before any model call)
+            ──► get_agent_runtime (AGENT_PROVIDER; 503 if misconfigured)
+            ──► AgentRuntime.run(conn, principal, correlation_id, message)
+                  loop (max 4 model calls):
+                    provider.complete(SYSTEM_PROMPT, messages, TOOL_SCHEMAS)     ← model PROPOSES
+                    for each tool_use (max 3/turn, 6 total, 1 refund):
+                       app.gateway.execute_tool(conn, PRINCIPAL, name, raw_input)  ← backend DECIDES
+                       tool_result = {"trust":"untrusted_data", "note":..., "result":...} (≤4000 chars)
+            ◄── ChatResponse {reply = model text + "Actions recorded by the system", actions, termination}
+```
+
+| Module | Role |
+|---|---|
+| `app/agent/provider.py` | Provider-neutral interface (`ModelProvider`, `ModelTurn`, `ProviderError` kinds), price table, cost estimate |
+| `app/agent/anthropic_provider.py` | Only module importing `anthropic` (2.5.0). `client.beta.messages.create` with `tool_choice=auto`, `output_config.effort=medium`. Refusal fallback **off by default**: only with `AGENT_MODEL_FALLBACK=default` does it send `fallbacks="default"` (beta `server-side-fallback-2026-07-01`). Otherwise a served model ≠ configured model is rejected as `model_mismatch` before any tool runs. Typed SDK errors become fixed kinds; SDK messages are dropped. |
+| `app/agent/tool_schemas.py` | 5 strict tool schemas; no identity/approval fields |
+| `app/agent/prompt.py` | Constant system prompt (trust boundary, limitations, reporting rules) |
+| `app/agent/runtime.py` | Bounded manual loop, budgets, audit, grounded reply |
+| `app/agent/factory.py` | Builds the runtime from `AGENT_PROVIDER` / `AGENT_MODEL`; fails closed (503) |
+
+### 13.2 Configuration
+
+| Variable | Meaning |
+|---|---|
+| `AGENT_PROVIDER` | unset/`none` = agent off (original fixed reply); `anthropic` = Claude; anything else = 503 |
+| `AGENT_MODEL` | default `claude-sonnet-5-5` ($2 / $10 per MTok, list price cached 2026-10-06) |
+| `AGENT_MODEL_FALLBACK` | unset/`off` (default) = no substitution; `default` = explicitly approved server-side refusal fallback; anything else = 503 |
+| `ANTHROPIC_API_KEY` | read by the SDK from the environment only; never read, logged or returned by app code |
+
+### 13.3 Limits (`AgentLimits`)
+
+| Limit | Value | On breach |
+|---|---|---|
+| Model calls per request | 4 | `max_model_calls`, grounded summary |
+| Tool calls per turn / total | 3 / 6 | extra calls `skipped` (model told), then `tool_call_budget` |
+| `request_refund` per request | 1 | further calls `skipped` |
+| `max_tokens` per call | 4,096 | `max_tokens` stop: that turn's tool calls are **not** executed |
+| Total input / output tokens | 60k / 12k | `token_budget`; pending tool calls not executed |
+| Approx. cost per request | $0.50 | `cost_budget`; unknown models priced at $10/$50 to stay conservative |
+| Tool result / reply size | 4,000 / 2,000 chars | result replaced by a truncation marker / model text truncated |
+| SDK retries | 1 (429/5xx/connection only) | model calls have no backend side effects; **tools are never retried** |
+| Request timeout | 30 s | `provider_error` |
+
+### 13.4 Failure handling
+
+Provider failures (`auth`, `rate_limited`, `timeout`, `unavailable`, `bad_request`, `malformed`), refusals,
+`max_tokens`, budget breaches and tool exceptions all return HTTP 200 with a `termination` value, a
+server-generated reply, and the list of actions that **had already completed** (so nothing done is hidden).
+Misconfiguration (no credentials, unknown provider) is a 503. Identity failures stay 401 and happen
+before any model call.
+
+### 13.5 Audit
+
+| Event | Records | Never records |
+|---|---|---|
+| `agent.model_call` | served model, latency, input/output tokens, approx. cost, stop reason, iteration; or error kind | prompts, messages, model text |
+| `agent.tool_proposal` | **model-proposed** tool name (`unregistered` if not in the registry), backend `tool_status` | arguments, raw unregistered names |
+| `tool.invoke` (existing) | **backend-executed** decision and outcome | values |
+| `agent.run` | termination, model calls, tool calls, tokens, cost | reply text |
+
+### 13.6 Data retention assumption
+
+Requests go to the Claude API under the account's default retention settings (not zero-data-retention).
+All content is synthetic. Before any non-synthetic use, confirm the organisation's retention and
+data-processing terms.

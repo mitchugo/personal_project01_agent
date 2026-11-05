@@ -19,6 +19,7 @@ _CODES = {
     405: "method_not_allowed",
     422: "validation_error",
     500: "internal_error",
+    503: "service_unavailable",
 }
 
 
