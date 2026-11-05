@@ -32,7 +32,7 @@ class UnknownDevUserError(LookupError):
     """No fixture user exists with the given user_id."""
 
 
-def _require_dev_identity_enabled() -> None:
+def require_dev_identity_enabled() -> None:
     mode = os.environ.get("IDENTITY_MODE")
     app_env = os.environ.get("APP_ENV", "local")
     if mode != DEV_IDENTITY_MODE or app_env != "local":
@@ -47,7 +47,7 @@ def resolve_dev_principal(conn: sqlite3.Connection, user_id: str) -> Principal:
 
     Deliberately takes no tenant_id or role parameter: those come from the database.
     """
-    _require_dev_identity_enabled()
+    require_dev_identity_enabled()
     row = conn.execute(
         "SELECT user_id, tenant_id, role FROM users WHERE user_id = ?", (user_id,)
     ).fetchone()

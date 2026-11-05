@@ -7,9 +7,9 @@ The goal is to build a small, local, multi-tenant customer support agent for two
 **fictional** insurance tenants — *Northstar Insurance* and *Meridian Cover* — and then
 attack it, document findings, and harden it with evidence.
 
-> **Status: Session 2 — synthetic data and identity fixtures.**
-> There is a seeded SQLite database and a local-only dev identity fixture. There is still
-> no agent, no model provider, no tools, no tool gateway and **no real authentication**.
+> **Status: Session 3 — minimal API, audit logging, dev identity boundary.**
+> There is a seeded SQLite database, `/health`, `/chat` (agent runtime not connected) and
+> `/audit-demo`. There is still no agent, no model provider, no tools, no tool gateway and **no real authentication**.
 > **Tenant isolation is not yet enforced by the application.** See
 > [docs/limitations.md](docs/limitations.md).
 
@@ -35,7 +35,7 @@ attack it, document findings, and harden it with evidence.
 ## Repository layout
 
 ```
-app/              FastAPI app (/health), models, SQLite schema, fixtures, seeding
+app/              FastAPI app, audit events, error handling, models, SQLite schema, fixtures, seeding
 app/identity/     Principal contract + local-only dev identity fixture
 tools/            Agent tool implementations (empty)
 data/             Local SQLite database (git-ignored) and data conventions
@@ -65,10 +65,21 @@ python -m app.seed          # create/refresh data/lab.db with synthetic fixtures
 python -m pytest -v
 ```
 
-Optionally run the app and open http://127.0.0.1:8000/health :
+Optionally run the app locally (dev identity fixture enabled, **local only, not authentication**):
 
 ```powershell
-uvicorn app.main:app --reload
+$env:IDENTITY_MODE = "local-fixture"   # omit this and /chat fails closed with 401
+uvicorn app.main:app --reload --no-access-log
+```
+
+`--no-access-log` matters: uvicorn's access log records full URLs including query strings.
+The app writes its own audit event for every request instead.
+
+```powershell
+# valid request (acting as a fixture user)
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/chat -ContentType application/json `
+  -Headers @{ "X-Dev-User-Id" = "ns-agent-01" } -Body '{"message": "Where is my claim?"}'
+Invoke-RestMethod http://127.0.0.1:8000/audit-demo
 ```
 
 ## Key documents

@@ -22,7 +22,7 @@ The OWASP Top 10 for LLM Applications (2025) is referenced for categories.
 
 ## 2. Threats
 
-Status for every row: **Control: Planned · Tested: No**
+Unless the **Status updates** table below says otherwise, every row is **Control: Planned · Tested: No**.
 
 | ID | Threat | Boundary | Assets | OWASP LLM | Planned control |
 |---|---|---|---|---|---|
@@ -39,6 +39,9 @@ Status for every row: **Control: Planned · Tested: No**
 | T-11 | Local identity fixture mistaken for, or deployed as, real authentication | TB1 | A2 | — | Labelled `local-fixture` everywhere; documented in limitations; no deployment target |
 | T-12 | Unbounded tool loops or token use (cost / availability) | TB2 | A7 | LLM10 | Max tool-call iterations per request; request timeouts |
 | T-13 | Poisoned or malicious dependency | — | All | LLM03 | Pinned requirements; minimal dependency set |
+| T-15 | Client forges or reuses correlation IDs to confuse or pollute the audit trail | TB1, TB6 | A6 | — | Correlation IDs generated server-side; client header ignored |
+| T-16 | Error responses leak internals (stack traces, SQL errors, file paths, submitted input) | TB1 | A1, A7 | — | Uniform error envelope; catch-all 500; validation errors omit input values |
+| T-17 | Dev user selector (`X-Dev-User-Id`) enabled in a deployed environment, letting anyone impersonate any user | TB1 | A1, A2 | — | Fails closed unless `IDENTITY_MODE=local-fixture` and `APP_ENV=local`; documented as not authentication |
 | T-14 | Tenant admin escalates privilege via role assignment (e.g. grants themselves supervisor to approve refunds, or reach customer data) | TB1 | A1, A3 | — | Admin functions on a separate, audited path; admin cannot change their own role; role changes audited |
 
 ### Status updates
@@ -48,6 +51,11 @@ Status for every row: **Control: Planned · Tested: No**
 | T-11 | 2 | Dev identity fixture fails closed (needs `IDENTITY_MODE=local-fixture` and `APP_ENV=local`) and stamps `identity_source="local-fixture"` on every principal. Unit-tested. | It is still not authentication; anyone local can pick any user. |
 | T-01, T-05 | 2 | Groundwork only: identity is resolved from the database and cannot be supplied by the caller; the schema rejects cross-tenant references. | **Not mitigated.** No tenant-scoped queries or gateway exist; nothing prevents a cross-tenant read. |
 | T-03 | 2 | Attack fixtures `mc-tkt-005` and `ns-kb-004` added for future tests. | Not mitigated. |
+| T-01, T-02 | 3 | At the HTTP boundary: body fields `tenant_id`/`role` are rejected (422), tenant/role headers are ignored, and identity claims in chat text (the `mc-tkt-005` text) do not change the principal. Tested. | **Still not mitigated for data access:** there is no tool gateway, so nothing yet constrains what a principal can read or change. |
+| T-07 | 3 | Audit metadata allow-list (scalar values only); tests assert message text, card-like numbers, API-key-like strings, `Authorization` header values and customer email/name/phone never appear in captured logs at any level. | uvicorn's access log and httpx's INFO log include query strings; run with `--no-access-log`. No persistent log store exists yet to protect. |
+| T-11, T-17 | 3 | HTTP dev selector fails closed for unset/other `IDENTITY_MODE` and any non-local `APP_ENV`, before touching the database. Tested. | Still not authentication. Anyone who can reach a local-mode server can act as any fixture user. |
+| T-15 | 3 | Server-generated uuid4 correlation IDs; client-supplied header ignored. Tested. | — |
+| T-16 | 3 | Generic 500 with correlation ID; no traceback or exception message in responses; 422 omits input. Tested. | Exception class name is logged server-side; tracebacks at DEBUG only. |
 
 ## 3. Security assumptions
 

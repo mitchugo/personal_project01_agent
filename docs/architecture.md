@@ -30,7 +30,7 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 
 | # | Component | Responsibility | Status |
 |---|---|---|---|
-| C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health` only |
+| C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health`, `/chat` (agent not connected), `/audit-demo` — Session 3; see §10 |
 | C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Dev fixture implemented + unit-tested (Session 2); not wired to the API |
 | C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Planned |
 | C4 | Model adapter | Single interface to a model provider | Planned (no provider connected) |
@@ -39,7 +39,7 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 | C7 | Data store (SQLite) | Tenant-scoped synthetic data | Schema + fixtures implemented + tested (Session 2); see §8 |
 | C8 | KB retrieval | Tenant-scoped document search; results returned as **data** | Planned |
 | C9 | Approval service | Records refund requests; requires a verified supervisor decision | Planned |
-| C10 | Audit log | Records who/what/when/decision; excludes secrets and unnecessary personal data | Planned |
+| C10 | Audit log | Records who/what/when/decision; excludes secrets and unnecessary personal data | Structured events + metadata allow-list implemented + tested (Session 3); written to stderr only, no persistent store |
 
 ## 4. Architecture diagram
 
@@ -238,3 +238,62 @@ app/identity/
 - **Dataset split:** even, per tenant: 10 customers, 5 tickets, 4 KB documents.
 - **Shared KB:** none. KB documents are tenant-private for now.
 - **Tenant admin customer access:** none, including read-only.
+
+## 10. HTTP interface (Session 3)
+
+### 10.1 Routes
+
+| Route | Identity required | Behaviour |
+|---|---|---|
+| `GET /health` | No | `{"status": "ok"}`, no data |
+| `POST /chat` | **Yes** (dev fixture) | Strict `ChatRequest {message}`; returns a fixed "agent runtime is not connected" reply plus the server-derived `acting_as` principal |
+| `GET /audit-demo` | No | Returns the constant `DEMO_EVENTS` from `app/audit.py`. There is no code path to the live audit log |
+
+### 10.2 HTTP trust boundary (TB1)
+
+```
+Client (untrusted)                     |  Server (trusted)
+---------------------------------------+-------------------------------------------------
+JSON body {"message": ...}  ---------->| strict ChatRequest: unknown fields -> 422, no type coercion
+X-Correlation-ID (client) ------------>| ignored; server generates a uuid4 per request
+X-Tenant-Id / X-Role / body tenant_id >| never read (body fields -> 422)
+X-Dev-User-Id: <user_id> ------------->| dev selector only (NOT a credential):
+                                       |   1. IDENTITY_MODE=local-fixture AND APP_ENV=local, else 401
+                                       |   2. read-only DB lookup -> tenant_id, role
+                                       |   3. frozen Principal on request.state
+chat text ---------------------------->| opaque data; never parsed for identity; only its length is logged
+```
+
+Request pipeline: `correlation_middleware` (ID, catch-all 500, `http.request` audit event)
+→ FastAPI exception handlers (uniform error envelope) → route → `get_dev_principal` dependency
+(`app/identity/http_dev.py`).
+
+### 10.3 Error format
+
+All errors: `{"error": {"code", "message", "correlation_id", "fields?"}}`. Validation errors
+list only the field location and error type, never the submitted value. Unhandled exceptions return a
+generic 500. The server log records the exception class and correlation ID; the traceback appears only at DEBUG level.
+
+### 10.4 Audit events
+
+One JSON line per event on the `audit` logger: `event_type`, `correlation_id`, `timestamp` (UTC),
+`outcome` (`success | denied | rejected | error`), `actor_user_id`, `tenant_id`, `metadata`.
+Metadata keys must be on `ALLOWED_METADATA_KEYS` and values must be scalars, so message text,
+prompts, headers and records cannot be logged through this path. A `/chat` request produces
+`identity.resolve` → `chat.message` → `http.request`, all sharing one correlation ID.
+
+### 10.5 Control status
+
+| Control | Status |
+|---|---|
+| Server-generated correlation ID on every response (`X-Correlation-ID`) | Implemented + tested |
+| Strict request models (no extra fields, no coercion, length limits) | Implemented + tested |
+| Uniform error envelope; no stack traces or input echo | Implemented + tested |
+| Audit metadata allow-list; message text/secrets absent from logs | Implemented + tested (for the current routes) |
+| Dev identity fails closed unless `IDENTITY_MODE=local-fixture` and `APP_ENV=local` | Implemented + tested |
+| Tenant/role taken only from the database, never the client or chat text | Implemented + tested (at the identity boundary) |
+| Same generic 401 for every identity failure (no user enumeration) | Implemented + tested |
+| Real authentication | **Planned — not started** |
+| Tenant-scoped data access / tool gateway / permission matrix enforcement | **Planned — not started** |
+| Persistent, tamper-evident audit store; access control for live audit data | **Planned — not started** |
+| Rate limiting, request size limits at the server level | **Planned — not started** |

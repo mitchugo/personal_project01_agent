@@ -55,3 +55,26 @@ A running record of what was learned each session. Keep entries short and honest
 **Next session**
 - Tool gateway: tenant-scoped repository functions plus the permission matrix, with deterministic
   authorisation tests (including the attack fixtures), still without a model provider.
+
+## Session 3 — 2026-11-05 — Minimal API, audit logging, dev identity boundary
+
+**Done**
+- `create_app()` factory with `/health`, `POST /chat` (fixed "agent not connected" reply) and `/audit-demo` (constant synthetic events).
+- Server-generated correlation ID on every response (`X-Correlation-ID`), shared by all audit events for that request.
+- Structured audit events with an allow-list of metadata keys; uniform error envelope; catch-all 500.
+- HTTP dev identity dependency: fails closed, reads tenant/role from a read-only DB connection, generic 401 for every failure.
+- Suite went from 58 to 108 passing tests.
+
+**Learned / reinforced**
+- **Allow-list beats deny-list for logging.** Instead of trying to strip sensitive fields, the
+  audit model only accepts known-safe keys, so logging a `message` key fails loudly in development.
+- **FastAPI's default 422 echoes the submitted input.** That is a quiet data-leak path, so the custom handler returns only location and error type.
+- **Check the mode before touching anything.** The identity dependency checks `IDENTITY_MODE`
+  before reading headers or opening the database. A test proves a missing database file is never created when the mode is off.
+- `sqlite3.connect()` silently **creates** a missing file. The API uses `mode=ro` URIs so a misconfigured path fails instead.
+- Running the demo revealed that uvicorn's access log and httpx log full URLs, query string included. Our own controls were fine,
+  but third-party logging still needs configuring (`--no-access-log`).
+- Using the same response for "unknown user" and "missing header" avoids user enumeration, while the audit log keeps the real reason.
+
+**Next session**
+- Tool gateway: tenant-scoped repository functions and permission-matrix enforcement, with deterministic authorisation tests (including the attack fixtures).

@@ -2,15 +2,23 @@
 
 Read this before drawing conclusions from the project.
 
-## Current state (Session 2)
+## Current state (Session 3)
 
-- **Tenant isolation is NOT enforced by the application.** The database rejects cross-tenant
-  *references* (composite foreign keys), but any query can still *read* any tenant's rows.
-  Isolation depends on the tool gateway and tenant-scoped queries, which do not exist yet.
-- **Tests prove fixture correctness only:** counts, relationships, tenant ownership, synthetic
-  data conventions, repeatable seeding, and that the dev identity fixture reads identity from
-  the database and fails closed. They do not prove authorisation of any action.
-- **The dev identity fixture is not wired into the API.** No endpoint uses a principal yet.
+- **Tenant isolation is NOT enforced at the API or tool layer.** The database rejects cross-tenant
+  *references* (composite foreign keys), but nothing yet constrains what data a principal can
+  *read or change*. Isolation depends on the tool gateway and tenant-scoped queries, which do not exist yet.
+- **There is no real authentication.** `POST /chat` uses the dev selector header `X-Dev-User-Id`.
+  It is not a credential, and it works only with `IDENTITY_MODE=local-fixture` and `APP_ENV=local`.
+  **Never enable it in a deployed or network-reachable environment.**
+- **`/chat` does nothing.** It returns a fixed "agent runtime is not connected" reply. No LLM,
+  tools or customer data are involved, so the tests prove HTTP-boundary behaviour only.
+- **The audit log goes to stderr only.** It isn't persisted, rotated, protected or tamper-evident.
+  `/audit-demo` serves constant synthetic events; there is no authorised way to view live audit data yet.
+- **Third-party loggers can include query strings:** uvicorn's access log and (in tests) httpx's
+  INFO log record full URLs. Run the server with `--no-access-log`; the app's own `http.request`
+  audit event records the path without the query string.
+- **No rate limiting** and no server-level request size limit (only the 4,000-character message limit).
+- **Log-safety tests cover the current routes only.** New routes and tools must add their own tests.
 - **No model provider is connected.** Behaviour of a real LLM against these controls is unknown.
 - **Seeding upserts fixtures but does not delete extra rows.** A row added by hand (or by a
   future test against `data/lab.db`) survives reseeding. Delete `data/lab.db` for a clean slate.
