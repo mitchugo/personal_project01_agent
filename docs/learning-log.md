@@ -24,8 +24,34 @@ A running record of what was learned each session. Keep entries short and honest
 - Even data split (10/5/4 per tenant); KB documents are tenant-private.
 
 **Open questions**
-- See [architecture.md §8](architecture.md#8-open-questions).
+- See [architecture.md §9](architecture.md#9-open-questions).
 
 **Next session**
 - Synthetic fixtures, identity context (local fixture), and the tool gateway with
   deterministic authorisation tests, still without a model provider.
+
+## Session 2 — 2026-11-05 — Synthetic data and identity fixtures
+
+**Done**
+- Recreated the venv on Python 3.12.10.
+- Pydantic models (`extra="forbid"`, frozen) for tenants, users, customers, tickets, KB documents.
+- SQLite schema with `STRICT` tables, `CHECK` constraints and composite `(id, tenant_id)` foreign keys.
+- Deterministic fixtures with stable IDs (2 tenants, 6 users, 20 customers, 10 tickets, 8 KB docs),
+  including two attack fixtures (`mc-tkt-005`, `ns-kb-004`).
+- Idempotent `python -m app.seed` (upsert in one transaction; refuses when `APP_ENV` is not local).
+- `Principal` contract separated from the local-only `resolve_dev_principal`.
+- 58 passing tests.
+
+**Learned / reinforced**
+- SQLite foreign keys are **off by default per connection**. Routing every connection through
+  `app.db.connect` is what makes them real.
+- A composite foreign key `(customer_id, tenant_id)` lets the database refuse cross-tenant
+  *links*. It does nothing for cross-tenant *reads*, so integrity and isolation are separate properties.
+- Designing the identity function so it *cannot* accept `tenant_id` or `role` is stronger than
+  validating them: there is no parameter for an attacker to manipulate.
+- A test of mine failed because `"supervisor" < "support_agent"` alphabetically. When a test
+  fails, check the test as well as the code.
+
+**Next session**
+- Tool gateway: tenant-scoped repository functions plus the permission matrix, with deterministic
+  authorisation tests (including the attack fixtures), still without a model provider.

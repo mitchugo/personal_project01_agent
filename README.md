@@ -7,9 +7,10 @@ The goal is to build a small, local, multi-tenant customer support agent for two
 **fictional** insurance tenants — *Northstar Insurance* and *Meridian Cover* — and then
 attack it, document findings, and harden it with evidence.
 
-> **Status: Session 1 — scaffold and documentation only.**
-> There is no agent, no model provider, no tools, no database, and no authentication.
-> No security property described in `docs/` has been tested yet. See
+> **Status: Session 2 — synthetic data and identity fixtures.**
+> There is a seeded SQLite database and a local-only dev identity fixture. There is still
+> no agent, no model provider, no tools, no tool gateway and **no real authentication**.
+> **Tenant isolation is not yet enforced by the application.** See
 > [docs/limitations.md](docs/limitations.md).
 
 ## Safety rules for this repository
@@ -34,9 +35,10 @@ attack it, document findings, and harden it with evidence.
 ## Repository layout
 
 ```
-app/              FastAPI application (currently only /health)
+app/              FastAPI app (/health), models, SQLite schema, fixtures, seeding
+app/identity/     Principal contract + local-only dev identity fixture
 tools/            Agent tool implementations (empty)
-data/             Synthetic fixtures only (empty)
+data/             Local SQLite database (git-ignored) and data conventions
 tests/            pytest suite
 attacks/          Attack cases mapped to threats in docs/threat-model.md
 docs/             Architecture, threat model, ADRs, learning log, limitations
@@ -47,14 +49,14 @@ evidence/
 
 ## Setup
 
-Requires **Python 3.11+** (target). See the note in `docs/limitations.md` about the
-current local interpreter.
+Requires **Python 3.11+** (developed on 3.12.10).
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-copy .env.example .env      # optional for now; nothing reads it yet
+copy .env.example .env      # optional; nothing loads .env automatically yet
+python -m app.seed          # create/refresh data/lab.db with synthetic fixtures
 ```
 
 ## Verify

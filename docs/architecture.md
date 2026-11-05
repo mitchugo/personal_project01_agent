@@ -31,12 +31,12 @@ The security design rests on one idea: **the LLM is an untrusted component.** It
 | # | Component | Responsibility | Status |
 |---|---|---|---|
 | C1 | API (FastAPI) | HTTP entry point; request validation (Pydantic) | `/health` only |
-| C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Planned |
+| C2 | Identity context | Resolves the caller to `{user_id, tenant_id, role}` **server-side**. In the lab this is a local fixture, **not authentication** | Dev fixture implemented + unit-tested (Session 2); not wired to the API |
 | C3 | Agent orchestrator | Builds prompts, calls the model, receives proposed tool calls | Planned |
 | C4 | Model adapter | Single interface to a model provider | Planned (no provider connected) |
 | C5 | Tool gateway (policy enforcement point) | Validates tool arguments, injects identity from C2, applies the permission matrix, then dispatches | Planned |
 | C6 | Tools | `read_customer`, `update_customer`, `search_kb`, `draft_email`, `request_refund` | Planned |
-| C7 | Data store (SQLite) | Tenant-scoped synthetic data | Planned |
+| C7 | Data store (SQLite) | Tenant-scoped synthetic data | Schema + fixtures implemented + tested (Session 2); see §8 |
 | C8 | KB retrieval | Tenant-scoped document search; results returned as **data** | Planned |
 | C9 | Approval service | Records refund requests; requires a verified supervisor decision | Planned |
 | C10 | Audit log | Records who/what/when/decision; excludes secrets and unnecessary personal data | Planned |
@@ -159,7 +159,76 @@ Each tenant has three fixture users, one per role:
 - **Knowledge documents are tenant-private.** No KB document is shared across tenants. Cross-tenant
   sharing may be introduced later as a separate, explicitly threat-modelled scenario.
 
-## 8. Open questions
+## 8. Data model and identity (Session 2)
+
+### 8.1 Entities
+
+```mermaid
+erDiagram
+    TENANTS ||--o{ USERS : owns
+    TENANTS ||--o{ CUSTOMERS : owns
+    TENANTS ||--o{ TICKETS : owns
+    TENANTS ||--o{ KNOWLEDGE_DOCUMENTS : owns
+    CUSTOMERS ||--o{ TICKETS : "raised (same tenant)"
+    USERS ||--o{ TICKETS : "assigned (same tenant)"
+```
+
+| Table | Key | Tenant-owned | Notes |
+|---|---|---|---|
+| `tenants` | `tenant_id` | — | `northstar`, `meridian` |
+| `users` | `user_id` | ✅ | `role` CHECK-constrained to the 3 roles |
+| `customers` | `customer_id` | ✅ | Contact fields: `email`, `phone`, `address`. Policy fields: `policy_number`, `policy_type`, `policy_note` |
+| `tickets` | `ticket_id` | ✅ | `body` is **untrusted** customer text |
+| `knowledge_documents` | `doc_id` | ✅ | `body` is **untrusted** content; tenant-private |
+
+Code: [app/models.py](../app/models.py) (Pydantic), [app/db.py](../app/db.py) (schema),
+[app/fixtures.py](../app/fixtures.py) (data), [app/seed.py](../app/seed.py) (seeding).
+
+### 8.2 Referential integrity (enforced by SQLite)
+
+- `PRAGMA foreign_keys = ON` on every connection (via `app.db.connect`). SQLite leaves it off by default.
+- Every tenant-owned table has `tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id)`.
+- **Same-tenant references:** tickets reference `(customer_id, tenant_id)` and
+  `(assigned_to, tenant_id)` as composite foreign keys. The database rejects a ticket in one
+  tenant that points at a customer or user in another.
+- `STRICT` tables and `CHECK` constraints reject wrong types and unknown enum values.
+- Not enforced by the database: "tickets are assigned only to agents or supervisors" (checked by fixture tests only).
+
+This is **integrity**, not **isolation**: the database will still happily *return* another
+tenant's rows to any query that asks for them.
+
+### 8.3 Intended tenant-scoped access patterns (not yet implemented)
+
+Rules for every future query issued on behalf of a principal:
+
+1. `tenant_id` in every `WHERE` clause comes from `Principal.tenant_id`, never from tool arguments or model output.
+2. Look up by ID **and** tenant together, e.g. `WHERE customer_id = ? AND tenant_id = ?`.
+   A record from another tenant then looks exactly like a missing record ("not found"), which
+   avoids confirming that the ID exists.
+3. Updates and deletes include `tenant_id` in the `WHERE` clause and check the affected row count.
+4. Lists and searches (`search_kb`) are always filtered by `tenant_id` before ranking.
+5. All values are bound parameters; table and column names come only from code constants.
+
+These will be enforced and tested in the tool-gateway session. Until then, **tenant isolation is not enforced by the application.**
+
+### 8.4 Identity: dev fixture vs. future production authentication
+
+```
+app/identity/
+  principal.py     Principal {user_id, tenant_id, role, identity_source}  <- the contract
+  dev_fixture.py   resolve_dev_principal(conn, user_id)                  <- LOCAL ONLY
+  (future)         production authentication module                       <- must return Principal
+```
+
+- The rest of the application will depend only on `Principal`.
+- `resolve_dev_principal` takes only a `user_id`. It reads `tenant_id` and `role` from the
+  `users` table, so neither a caller nor a model can choose them.
+- It fails closed: it raises unless `IDENTITY_MODE=local-fixture` **and** `APP_ENV=local`.
+- `identity_source="local-fixture"` travels with the principal so logs and evidence always show
+  that no real authentication happened.
+- It is **not authentication**: anyone who can call it can become any fixture user (T-11).
+
+## 9. Open questions
 
 1. Is there a refund amount threshold above which a second approver is required?
 2. What audit retention period should the lab model?

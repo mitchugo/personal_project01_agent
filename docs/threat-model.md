@@ -41,6 +41,14 @@ Status for every row: **Control: Planned · Tested: No**
 | T-13 | Poisoned or malicious dependency | — | All | LLM03 | Pinned requirements; minimal dependency set |
 | T-14 | Tenant admin escalates privilege via role assignment (e.g. grants themselves supervisor to approve refunds, or reach customer data) | TB1 | A1, A3 | — | Admin functions on a separate, audited path; admin cannot change their own role; role changes audited |
 
+### Status updates
+
+| Threat | Session | What changed | Still open |
+|---|---|---|---|
+| T-11 | 2 | Dev identity fixture fails closed (needs `IDENTITY_MODE=local-fixture` and `APP_ENV=local`) and stamps `identity_source="local-fixture"` on every principal. Unit-tested. | It is still not authentication; anyone local can pick any user. |
+| T-01, T-05 | 2 | Groundwork only: identity is resolved from the database and cannot be supplied by the caller; the schema rejects cross-tenant references. | **Not mitigated.** No tenant-scoped queries or gateway exist; nothing prevents a cross-tenant read. |
+| T-03 | 2 | Attack fixtures `mc-tkt-005` and `ns-kb-004` added for future tests. | Not mitigated. |
+
 ## 3. Security assumptions
 
 These are assumed, not verified. Breaking any of them invalidates parts of this model.

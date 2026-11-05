@@ -2,11 +2,19 @@
 
 Read this before drawing conclusions from the project.
 
-## Current state (Session 1)
+## Current state (Session 2)
 
-- **Nothing security-relevant is implemented.** The only running code is a `/health` endpoint.
-- **No security property has been tested.** Controls in the docs are *Planned* only.
+- **Tenant isolation is NOT enforced by the application.** The database rejects cross-tenant
+  *references* (composite foreign keys), but any query can still *read* any tenant's rows.
+  Isolation depends on the tool gateway and tenant-scoped queries, which do not exist yet.
+- **Tests prove fixture correctness only:** counts, relationships, tenant ownership, synthetic
+  data conventions, repeatable seeding, and that the dev identity fixture reads identity from
+  the database and fails closed. They do not prove authorisation of any action.
+- **The dev identity fixture is not wired into the API.** No endpoint uses a principal yet.
 - **No model provider is connected.** Behaviour of a real LLM against these controls is unknown.
+- **Seeding upserts fixtures but does not delete extra rows.** A row added by hand (or by a
+  future test against `data/lab.db`) survives reseeding. Delete `data/lab.db` for a clean slate.
+- `.env` is not loaded automatically; settings come from real environment variables.
 
 ## By design (lab constraints)
 
