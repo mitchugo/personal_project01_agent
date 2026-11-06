@@ -58,7 +58,9 @@ def test_no_invented_live_successes(client):
 
 def test_mock_versus_live_labelling(client):
     s = specs(client.get("/demo/assessment").json())
-    assert {k for k, v in s.items() if v["status"] == "tested_live"} == {"A01", "A04", "A06", "A08"}
+    assert {k for k, v in s.items() if v["status"] == "tested_live"} == {"A01", "A04", "A06"}
+    # Dataset 1.2.0 added mock-only A08-EX3, so A08's live coverage is now partial (honest, computed).
+    assert s["A08"]["status"] == "partially_tested"
     assert {k for k, v in s.items() if v["status"] == "tested_mock"} == {"A02", "A03", "A05", "A07"}
     assert s["A02"]["live"]["configured_models"] == [] and s["A02"]["live"]["objective_success_ci95"] is None
 
