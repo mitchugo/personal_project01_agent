@@ -30,6 +30,21 @@
   So "always during schema creation" is not established. The title is kept for traceability. An immediate re-run passed (546/546).
   Running total: 3 known occurrences; 2 crashes in the 10 full-suite runs counted in Sessions 8–10.
 
+## Session 11 investigation (2026-11-06)
+
+- **Fourth occurrence:** a full backend run, about 12 tests in (`tests/test_agent_chat.py`). The first frame was
+  `asyncio/windows_events.py`. Three different first frames so far: SQLite `executescript`, `threading.wait`, asyncio's Windows event loop.
+- **Reproduced in isolation:** `tests/test_agent_chat.py` alone, looped 15 times → **2 crashes (~13%)**, both in
+  `app/db.py:177 create_schema`. The other 13 runs passed 16/16.
+- **Control experiment:** 5 processes × 300 fresh databases created and seeded **single-threaded, without FastAPI, TestClient
+  or the SDK** → **0 crashes in 1,500 seeds**.
+- **Interpretation (bounded):** plain schema creation on its own did not reproduce the crash. It correlates with the
+  multi-threaded test context (TestClient/anyio worker threads, SDK HTTP client). The root cause is still **unknown**.
+- **Runtime:** Python 3.12.10 (MSC v.1943, 64-bit), SQLite 3.49.1.
+- **Effect on assessment evidence:** none observed. A crash ends the process with a non-zero exit, and harness records are
+  written per completed trial. All Session 11 live batch processes exited 0, and verification counted 63/63 planned trials with
+  complete evidence.
+
 ## Not yet known
 
 The faulting module, whether it is SQLite, Python, antivirus or the file system, and whether parallel processes running at the same time matter.

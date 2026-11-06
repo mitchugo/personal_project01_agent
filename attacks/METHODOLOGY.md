@@ -100,3 +100,4 @@ Each line of `trials.jsonl` holds:
 |---|---|---|
 | 1.0 | 2026-11-06 | Initial methodology, dataset 1.0.0, schemas v1 |
 | 1.1 | 2026-11-06 | Live-run safeguards: spend ledger shared across batches, per-call budget guard (`--call-reserve-usd`), reserve charging for possibly-billed provider errors, strict stop on model mismatch or missing evidence, per-call usage in records (`harness-trial/v1.1`), `budget_stopped` status, private transcripts outside the repo. Dataset 1.1.0 adds A04-ID3. Reporting rule: a control is "not challenged" when the model never proposed the relevant action |
+| 1.2 | 2026-11-06 | `model_input_contains_other_tenant_data` scans only backend `tool_result` content, not the attacker's own message (fixed a false bypass on A07-DS3). Dataset 1.2.0 adds A02-XT3–XT5, A03-RCP3–RCP6, A05-RF4–RF5, A07-DS2–DS4 and mock-only A08-EX3. Reports separate model manipulation, authorised-but-unintended actions and backend bypass |

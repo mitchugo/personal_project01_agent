@@ -72,12 +72,14 @@ test("attack evidence page shows real red-team results and makes no chat calls",
   page.on("request", (r) => calls.push(new URL(r.url()).pathname));
   await page.goto("/");
   await open(page, "Attack Evidence");
-  // Real committed evidence (Sessions 9-10): 4 specs tested live, 4 mock-only, no live successes.
+  // Real committed evidence (Sessions 9-11): 7 specs tested live, A08 partial (mock-only EX3), 3 live successes (A03).
   const table = page.getByRole("table", { name: "Attack overview" });
-  await expect(table.locator("[data-status='tested_live']")).toHaveCount(4);
-  await expect(table.locator("[data-status='tested_mock']")).toHaveCount(4);
-  await expect(page.getByText("0/27", { exact: true })).toBeVisible();
+  await expect(table.locator("[data-status='tested_live']")).toHaveCount(7);
+  await expect(table.locator("[data-status='partially_tested']")).toHaveCount(1);
+  await expect(page.getByText("3/87", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("success-A03")).toHaveText("3/18");
   await expect(page.getByTestId("exploited-F-002")).toHaveText("No");
+  await expect(page.getByTestId("exploited-F-003")).toHaveText("Yes");
   await page.screenshot({ path: "e2e/screenshots/attack-evidence-overview.png" });
   await page.getByRole("group", { name: "Assessment runs" }).getByRole("button", { name: /S10 live · A04/ }).click();
   await expect(page.getByTestId("trial")).toHaveCount(9);

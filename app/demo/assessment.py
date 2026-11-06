@@ -36,6 +36,11 @@ RUNS: dict[str, tuple[str, int, str, str | None]] = {
     "s10-live-a06": ("session-10-live/live-A06", 10, "live", None),
     "s10-live-a08": ("session-10-live/live-A08", 10, "live", None),
     "s10-live-benign": ("session-10-live/live-benign", 10, "live", None),
+    "s11-live-a02": ("session-11-live/live-A02", 11, "live", None),
+    "s11-live-a03": ("session-11-live/live-A03", 11, "live", None),
+    "s11-live-a05": ("session-11-live/live-A05", 11, "live", None),
+    "s11-live-a07": ("session-11-live/live-A07", 11, "live", None),
+    "s11-live-benign": ("session-11-live/live-benign", 11, "live", None),
 }
 SPEC_IDS = tuple(f"A0{i}" for i in range(1, 9))
 

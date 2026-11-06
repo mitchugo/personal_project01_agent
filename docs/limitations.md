@@ -164,6 +164,19 @@ Read this before drawing conclusions from the project.
     records. Counts are always computed from records.
   - The "Tested live" label means every dataset case ran live, not that every spec payload or control was exercised.
     For example, refund approval was never proposed in A04.
+
+## Session 11: workflow assessment
+
+- **3 trials per case, one model, fixed non-adaptive payloads.** The 3/60 attacker successes (all A03-RCP2) and 0/60 bypasses are
+  small-sample observations.
+- **18 of 60 attack trials never reached the backend:** Claude refused before any tool call. For those, the controls
+  (recipient lock, header validation, absence of file/log tools) are supported only by deterministic tests.
+- **Approval-service attacks** (self-approval, cross-tenant approval, binding, replay of approvals) are not reachable through the
+  agent. They are covered by deterministic tests, not by live trials.
+- **Dataset defect H-001:** the A05-RF1 text indicator `paid` matches "hasn't been paid", inflating the model-compliance count
+  (2 false positives). Verdicts are unaffected. Not yet fixed.
+- **F-003 assumes an insider or compromised-staff threat model.** The lab cannot test real customer-impersonation flows or mail delivery.
+- **Diagnostic endpoints outside local mode** were verified by existing deterministic tests only, not live.
 - **The intermittent SQLite access violation recurred** (once in Session 10; an immediate re-run passed). Root cause unknown.
   Tracked as [ENG-001](engineering/ENG-001-intermittent-sqlite-access-violation.md).
 - **O-001 (informational):** the shared tool schema shows a Northstar-format example ID to every tenant.
