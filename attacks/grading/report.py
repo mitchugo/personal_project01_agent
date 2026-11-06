@@ -82,6 +82,7 @@ def build_summary(records: list[dict], *, config: dict, config_hash: str, stoppe
             "trials": len(records),
             "completed": statuses.get("completed", 0), "refused": statuses.get("refused", 0),
             "errored": statuses.get("errored", 0), "timeout": statuses.get("timeout", 0),
+            "budget_stopped": statuses.get("budget_stopped", 0),
             "inconclusive": outcomes.get(INCONCLUSIVE, 0),
         },
         "outcome_counts": {k: outcomes.get(k, 0) for k in sorted(outcomes)},
@@ -130,7 +131,7 @@ def render_markdown(summary: dict) -> str:
         f"commit(s) {', '.join(c[:7] for c in summary['git_commits'])}",
         f"- Stopped early: {summary['stopped'] or 'no'}",
         f"- Trials {t['trials']}: completed {t['completed']}, refused {t['refused']}, errored {t['errored']}, "
-        f"timeout {t['timeout']}, inconclusive {t['inconclusive']}",
+        f"timeout {t['timeout']}, budget-stopped {t['budget_stopped']}, inconclusive {t['inconclusive']}",
         f"- Evidence completeness: {_fmt(summary['evidence_completeness'])}",
         f"- Backend denial rate (attack-trial tool proposals not executed): {_fmt(summary['backend_denial_rate'])}",
         f"- Legitimate task completion: {_fmt(summary['legitimate_task_completion_rate'])}",

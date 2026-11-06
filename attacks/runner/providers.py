@@ -11,16 +11,61 @@
 """
 
 import json
+import os
 import time
+from pathlib import Path
 
-from app.agent.provider import MessagesFormat, ModelTurn, ProviderError, ToolCall
+from app.agent.provider import MessagesFormat, ModelTurn, ProviderError, ToolCall, estimate_cost_usd
 from attacks.runner.schema import MockTurn
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
+# Provider errors after which the request may still have been processed (and billed) without usage
+# being reported to us. We charge a conservative reserve for them instead of zero.
+POSSIBLY_BILLED = frozenset({"model_mismatch", "timeout", "unavailable", "malformed"})
 
 
 class LiveModeRefused(Exception):
     pass
+
+
+class BudgetTrackingError(Exception):
+    pass
+
+
+class SpendTracker:
+    """Campaign/session spend in USD (application-side estimates), optionally persisted to a ledger file.
+
+    The ledger survives across CLI invocations, so several batches share one cap. It is rewritten
+    after EVERY model call. If it cannot be written, tracking has failed and the campaign stops.
+    Estimates come from reported token usage x list prices; they are not the provider's bill.
+    """
+
+    def __init__(self, cap_usd: float, ledger: Path | None = None):
+        self.ledger = ledger
+        self.cap = cap_usd
+        self.spent = 0.0
+        self.calls: list[dict] = []
+        if ledger is not None and ledger.exists():
+            data = json.loads(ledger.read_text(encoding="utf-8"))
+            if data.get("cap_usd") != cap_usd:
+                raise BudgetTrackingError("ledger cap differs from requested cap")
+            self.spent = float(data["spent_usd"])
+            self.calls = list(data["calls"])
+
+    def remaining(self) -> float:
+        return round(self.cap - self.spent, 6)
+
+    def add(self, cost: float, **detail) -> None:
+        self.spent = round(self.spent + cost, 6)
+        self.calls.append({"cost_usd": round(cost, 6), **detail})
+        if self.ledger is not None:
+            tmp = self.ledger.with_suffix(".tmp")
+            try:
+                tmp.write_text(json.dumps({"cap_usd": self.cap, "spent_usd": self.spent, "calls": self.calls},
+                                          indent=1), encoding="utf-8")
+                os.replace(tmp, self.ledger)
+            except OSError as exc:
+                raise BudgetTrackingError(f"ledger write failed: {type(exc).__name__}") from None
 
 
 class MockProvider(MessagesFormat):
@@ -52,11 +97,16 @@ class MockProvider(MessagesFormat):
 class GuardedProvider:
     """Enforces model identity and deadline; records model input and proposals."""
 
-    def __init__(self, inner, configured_model: str, deadline: float, clock=time.monotonic):
+    def __init__(self, inner, configured_model: str, deadline: float, clock=time.monotonic,
+                 tracker: SpendTracker | None = None, call_reserve_usd: float = 0.0, label: str = ""):
         self.inner = inner
         self.model_id = configured_model
         self.deadline = deadline
         self.clock = clock
+        self.tracker = tracker
+        self.call_reserve = call_reserve_usd   # worst-case cost of ONE call; must remain before calling
+        self.label = label
+        self.charged_reserves = 0              # possibly-billed failures charged at the reserve
         self.attempts = 0                    # complete() calls, including ones that failed
         self.requests: list[str] = []        # serialised messages of each model request
         self.proposals: list[dict] = []      # every tool call the model PROPOSED (before any backend decision)
@@ -80,12 +130,23 @@ class GuardedProvider:
         if self.clock() > self.deadline:
             self.events.append("timeout")
             raise ProviderError("timeout")
+        if self.tracker is not None and self.tracker.remaining() < self.call_reserve:
+            # The next call could exceed the allocation: do not make it.
+            self.events.append("budget_guard")
+            raise ProviderError("unavailable")
         self.requests.append(json.dumps(messages, sort_keys=True, default=str))
         try:
             turn = self.inner.complete(system=system, messages=messages, tools=tools, max_tokens=max_tokens)
         except ProviderError as exc:
             self.events.append(f"provider_error:{exc.kind}")
+            if self.tracker is not None and exc.kind in POSSIBLY_BILLED:
+                self.charged_reserves += 1
+                self.tracker.add(self.call_reserve, trial=self.label, kind=f"reserve:{exc.kind}")
             raise
+        if self.tracker is not None:
+            self.tracker.add(estimate_cost_usd(turn), trial=self.label, model=turn.model,
+                             input_tokens=turn.input_tokens, output_tokens=turn.output_tokens,
+                             cache_read=turn.cache_read_input_tokens, cache_write=turn.cache_creation_input_tokens)
         self.served_models.append(turn.model)
         self.usage["input_tokens"] += turn.input_tokens
         self.usage["output_tokens"] += turn.output_tokens
@@ -100,11 +161,11 @@ class GuardedProvider:
         return turn
 
 
-def build_live_provider(model: str, *, live: bool, budget_usd: float | None):
+def build_live_provider(model: str, *, live: bool, budget_usd: float | None, timeout_s: float = 30.0):
     """The only constructor for a paid provider. Fails closed without explicit opt-in."""
     if not live:
         raise LiveModeRefused("live mode not enabled (pass --live)")
     if budget_usd is None or budget_usd <= 0:
         raise LiveModeRefused("live mode needs a positive --budget-usd")
     from app.agent.anthropic_provider import AnthropicProvider  # SDK imported only here
-    return AnthropicProvider(model, allow_fallback=False, max_retries=0)
+    return AnthropicProvider(model, allow_fallback=False, max_retries=0, timeout=timeout_s)

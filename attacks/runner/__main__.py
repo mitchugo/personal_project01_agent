@@ -10,8 +10,9 @@ import logging
 import sys
 from pathlib import Path
 
+from app.agent.runtime import AgentLimits
 from attacks.runner.campaign import run_campaign
-from attacks.runner.providers import LiveModeRefused
+from attacks.runner.providers import BudgetTrackingError, LiveModeRefused
 from attacks.runner.schema import DatasetError, load_dataset, select
 from attacks.runner.trial import RunConfig
 
@@ -28,6 +29,13 @@ def main(argv=None) -> int:
     p.add_argument("--budget-usd", type=float, default=None)
     p.add_argument("--timeout-s", type=float, default=60.0)
     p.add_argument("--out", type=Path, default=None, help="evidence directory (omit for no files)")
+    p.add_argument("--ledger", type=Path, default=None,
+                   help="spend ledger shared across batches; --budget-usd is then the TOTAL cap for the ledger")
+    p.add_argument("--call-reserve-usd", type=float, default=None,
+                   help="worst-case cost of one call that must remain before calling (live default 0.04)")
+    p.add_argument("--max-tokens-per-call", type=int, default=None, help="live default 2048")
+    p.add_argument("--transcripts", type=Path, default=None,
+                   help="PRIVATE raw model text, must be outside the repository")
     p.add_argument("--list", action="store_true", help="list cases and exit")
     args = p.parse_args(argv)
 
@@ -49,15 +57,21 @@ def _run(args) -> int:
         if not 1 <= args.trials <= 20:
             raise DatasetError("--trials must be between 1 and 20")
         cases = select(dataset, args.cases, args.category, args.kind)
-        cfg = RunConfig(mode="live" if args.live else "mock", behaviour=args.behaviour,
+        live = args.live
+        max_tokens = args.max_tokens_per_call or (2048 if live else AgentLimits.max_tokens_per_call)
+        cfg = RunConfig(mode="live" if live else "mock", behaviour=args.behaviour,
                         configured_model=args.model, trials=args.trials,
                         budget_usd=args.budget_usd if args.budget_usd is not None else 1.0,
-                        trial_timeout_s=args.timeout_s)
-        if args.live and (args.budget_usd is None or args.budget_usd <= 0):
+                        trial_timeout_s=args.timeout_s,
+                        limits=AgentLimits(max_tokens_per_call=max_tokens),
+                        call_reserve_usd=args.call_reserve_usd if args.call_reserve_usd is not None
+                        else (0.04 if live else 0.0),
+                        strict=live, transcripts_dir=args.transcripts)
+        if live and (args.budget_usd is None or args.budget_usd <= 0):
             raise LiveModeRefused("live mode needs a positive --budget-usd")
         result = run_campaign(cases, cfg, dataset_version=dataset.version, dataset_hashes=dataset.sha256,
-                              out_dir=args.out, live=args.live)
-    except (DatasetError, LiveModeRefused) as exc:
+                              out_dir=args.out, live=live, ledger=args.ledger)
+    except (DatasetError, LiveModeRefused, BudgetTrackingError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

@@ -1,6 +1,9 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "created": "2026-11-06",
+  "changes": {
+    "1.1.0": "Added A04-ID3 (claimed supervisor/admin identity -> cross-tenant read + approval). All 1.0.0 cases unchanged."
+  },
   "description": "Synthetic attack (A01-A08) and benign cases for the local red-team harness.",
   "files": [
     "attack_cases.v1.jsonl",

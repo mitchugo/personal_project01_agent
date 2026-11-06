@@ -46,7 +46,7 @@ def one(dataset, case_id, **cfg):
 # --- dataset ------------------------------------------------------------------------------------
 
 def test_dataset_loads_with_both_sets_and_version(dataset):
-    assert dataset.version == "1.0.0"
+    assert dataset.version == "1.1.0"
     kinds = {c.kind for c in dataset.cases}
     assert kinds == {"attack", "benign"}
     assert {c.spec_id for c in dataset.cases if c.kind == "attack"} == {f"A0{i}" for i in range(1, 9)}
@@ -265,7 +265,7 @@ def test_live_mode_requires_flag_and_budget(monkeypatch):
     import app.agent.anthropic_provider as ap
     monkeypatch.setattr(ap, "AnthropicProvider", FakeAnthropic)
     build_live_provider("claude-sonnet-5-5", live=True, budget_usd=0.5)
-    assert seen == {"model": "claude-sonnet-5-5", "allow_fallback": False, "max_retries": 0}
+    assert seen == {"model": "claude-sonnet-5-5", "allow_fallback": False, "max_retries": 0, "timeout": 30.0}
 
 
 def test_mock_campaign_never_builds_a_live_provider(dataset, monkeypatch):

@@ -19,6 +19,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -46,11 +47,15 @@ class RunConfig:
     budget_usd: float = 1.0                # campaign cap (mock costs are simulated, but still capped)
     trial_timeout_s: float = 60.0
     limits: AgentLimits = field(default_factory=AgentLimits)
+    call_reserve_usd: float = 0.0          # worst-case cost of one call; must remain before each call
+    strict: bool = False                   # stop the campaign on model-identity / evidence failures
+    transcripts_dir: Path | None = None    # PRIVATE raw model text, outside the repo; never evidence
 
     def as_dict(self) -> dict:
         return {"mode": self.mode, "behaviour": self.behaviour, "configured_model": self.configured_model,
                 "trials": self.trials, "budget_usd": self.budget_usd, "trial_timeout_s": self.trial_timeout_s,
-                "limits": self.limits.__dict__}
+                "limits": self.limits.__dict__, "call_reserve_usd": self.call_reserve_usd, "strict": self.strict,
+                "transcripts": self.transcripts_dir is not None}
 
 
 class AuditCapture(logging.Handler):
@@ -154,7 +159,7 @@ def _decisions(audit: list[dict]) -> list[dict]:
 
 def run_trial(case: CaseSpec, trial_index: int, cfg: RunConfig, *, git: dict, dataset_version: str,
               config_hash: str, previous_canaries: set[str], remaining_budget: float,
-              live_provider=None, clock=time.monotonic, db_factory=TrialDatabase) -> dict:
+              live_provider=None, clock=time.monotonic, db_factory=TrialDatabase, tracker=None) -> dict:
     started = clock()
     deadline = started + cfg.trial_timeout_s
     limits = AgentLimits(**{**cfg.limits.__dict__,
@@ -162,6 +167,9 @@ def run_trial(case: CaseSpec, trial_index: int, cfg: RunConfig, *, git: dict, da
     turns: list[TurnObservation] = []
     missing: list[str] = []
     obs = None
+    trial_id = f"{case.id}#{trial_index}"
+    tracked_before = tracker.spent if tracker is not None else 0.0
+    reserves = 0
 
     with db_factory() as db:
         db.apply_setup(case.setup)
@@ -172,7 +180,8 @@ def run_trial(case: CaseSpec, trial_index: int, cfg: RunConfig, *, git: dict, da
                     inner = MockProvider(spec_turn.mock[cfg.behaviour], model_id=cfg.configured_model)
                 else:
                     inner = live_provider
-                guard = GuardedProvider(inner, cfg.configured_model, deadline, clock=clock)
+                guard = GuardedProvider(inner, cfg.configured_model, deadline, clock=clock, tracker=tracker,
+                                        call_reserve_usd=cfg.call_reserve_usd, label=trial_id)
                 runtime = AgentRuntime(guard, limits)
                 app = create_app()
                 # No default-argument lambda: FastAPI would treat it as a parameter and copy the runtime.
@@ -196,19 +205,46 @@ def run_trial(case: CaseSpec, trial_index: int, cfg: RunConfig, *, git: dict, da
                     provider_events=list(guard.events), usage=dict(guard.usage))
                 _isolation_check(turn, previous_canaries, case.canary)
                 missing += _missing_evidence(case, turn, guard.attempts)
+                reserves += guard.charged_reserves
                 turns.append(turn)
         after = snapshot(db.path)
         obs = Observation(before=before, after=after, turns=turns, canary=case.canary)
         db_diff = diff(before, after)
 
     g = grade(case, obs, missing)
-    return _record(case, trial_index, cfg, git, dataset_version, config_hash, obs, db_diff, missing, g,
-                   duration_ms=round((clock() - started) * 1000, 1))
+    record = _record(case, trial_index, cfg, git, dataset_version, config_hash, obs, db_diff, missing, g,
+                     duration_ms=round((clock() - started) * 1000, 1))
+    record["budget_check"] = {
+        "tracked_usd": round((tracker.spent if tracker is not None else 0.0) - tracked_before, 6),
+        # Per-call audit events (finest grain), not the run total, so one dropped run event can't mask spend.
+        "audited_usd": round(sum(c.get("cost_usd") or 0.0 for t in record["turns"] for c in t["model_calls"]), 6),
+        "reserves_charged": reserves,
+        "reserve_usd_each": cfg.call_reserve_usd,
+    }
+    if cfg.transcripts_dir is not None:
+        _write_transcript(cfg.transcripts_dir, trial_id, obs)
+    return record
+
+
+def _write_transcript(directory: Path, trial_id: str, obs: Observation) -> None:
+    """PRIVATE analyst notes: raw model text per turn. Written outside the repo only; never committed."""
+    repo = Path(__file__).resolve().parents[2]
+    target = Path(directory).resolve()
+    if target == repo or repo in target.parents:
+        raise HarnessAbort("transcripts_refused: directory is inside the repository")
+    target.mkdir(parents=True, exist_ok=True)
+    with (target / "transcripts.jsonl").open("a", encoding="utf-8") as fh:
+        for i, t in enumerate(obs.turns):
+            fh.write(json.dumps({"trial_id": trial_id, "turn": i, "principal": t.principal,
+                                 "model_texts": t.model_texts, "reply": t.body.get("reply"),
+                                 "proposals": t.proposals, "actions": t.actions}, default=str) + "\n")
 
 
 def _status(turns: list[TurnObservation]) -> str:
     events = [e for t in turns for e in t.provider_events]
     terminations = [t.body.get("termination") for t in turns]
+    if "budget_guard" in events:
+        return "budget_stopped"
     if "timeout" in events or "provider_error:timeout" in events:
         return "timeout"
     if any(t.status_code is None or t.status_code >= 500 for t in turns) or any(
@@ -226,8 +262,9 @@ def _record(case, trial_index, cfg, git, dataset_version, config_hash, obs, db_d
         for m in t.served_models:
             if m not in served:
                 served.append(m)
+    principal = principal_for(case.principal)
     return {
-        "schema": "harness-trial/v1",
+        "schema": "harness-trial/v1.1",
         "test_id": case.id,
         "trial_id": f"{case.id}#{trial_index}",
         "trial_index": trial_index,
@@ -238,8 +275,9 @@ def _record(case, trial_index, cfg, git, dataset_version, config_hash, obs, db_d
         "mode": cfg.mode, "behaviour": cfg.behaviour if cfg.mode == "mock" else None,
         "configured_model": cfg.configured_model,
         "actual_models": served,
-        "model_mismatch": any("model_mismatch" in t.provider_events for t in obs.turns),
-        "principal": case.principal, "tenant": principal_for(case.principal).tenant_id,
+        # Substring match: the real provider reports it as "provider_error:model_mismatch".
+        "model_mismatch": any("model_mismatch" in e for t in obs.turns for e in t.provider_events),
+        "principal": case.principal, "tenant": principal.tenant_id, "role": principal.role.value,
         "payload": {"entry_point": case.entry_point, "canary": case.canary,
                     "sha256": case.payload_sha256()[:16]},
         "turns": [{
@@ -250,6 +288,12 @@ def _record(case, trial_index, cfg, git, dataset_version, config_hash, obs, db_d
             "backend_actions": [safe_value(a) for a in t.actions],
             "backend_decisions": _decisions(t.audit),
             "audit_event_types": [e["event_type"] for e in t.audit],
+            "model_calls": [{"outcome": e["outcome"],
+                             **{k: e["metadata"].get(k) for k in (
+                                 "iteration", "configured_model", "model", "input_tokens", "output_tokens",
+                                 "cost_usd", "stop_reason", "reason", "refusal_category", "latency_ms")
+                                if k in e["metadata"]}}
+                            for e in t.audit if e["event_type"] == "agent.model_call"],
             "model_text": [digest(x) for x in t.model_texts],
             "reply": digest(t.body.get("reply") or ""),
             "provider_events": t.provider_events,
