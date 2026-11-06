@@ -232,6 +232,71 @@ def test_original_session_10_trial_files_unchanged_by_reads(client):
     assert path.read_bytes() == before
 
 
+# --- Session 12: assessment overview summary ----------------------------------------------------
+
+def test_summary_controls_exercised_are_computed_from_the_records(client):
+    c = client.get("/demo/assessment").json()["summary"]["controls_exercised"]
+    # Independently recomputed in evidence/runs/session-12-assessment/consolidated-results.md.
+    assert (c["proposals"], c["not_executed"]) == (100, 36)
+    assert {(r["tool"], r["status"]): r["count"] for r in c["refusals"]} == {
+        ("read_customer", "denied"): 3, ("read_customer", "invalid"): 6, ("read_customer", "not_found"): 18,
+        ("request_refund", "skipped"): 6, ("update_customer", "not_found"): 3}
+    assert c["requests_rejected_before_model"] == 3          # A04-ID2 (422 before identity or agent)
+    assert c["trials_without_tool_call"] == 24               # backend not exercised in these trials
+
+
+def test_summary_states_remediation_not_started_and_links_open(client):
+    s = client.get("/demo/assessment").json()["summary"]
+    assert s["remediation_status"] == "not_started"
+    assert s["scope"] and s["residual_risks"]
+    ids = [link["id"] for link in s["report_links"]]
+    assert "reports/pre-remediation/ai-security-assessment.md" in ids
+    assert "runs/session-12-assessment/evidence-verification.md" in ids
+    for i in ids:
+        assert client.get("/demo/evidence/file", params={"id": i}).status_code == 200, i
+
+
+def test_finding_classifications_separate_confirmed_live_from_mock_only(client):
+    f = {x["id"]: x for x in client.get("/demo/assessment").json()["findings"]}
+    assert {k: v["classification"] for k, v in f.items()} == {
+        "F-001": "mitigated", "F-002": "confirmed_mock_only", "F-003": "confirmed_live", "O-001": "observation"}
+    assert all(v["confidence"] for v in f.values())
+
+
+def test_hostile_curated_summary_is_validated_not_trusted(tmp_path, monkeypatch):
+    idx = tmp_path / "idx.json"
+    idx.write_text(json.dumps({
+        "schema": "assessment-index/v1",
+        "summary": {
+            "scope": "ok\x00<script>", "remediation_status": "retested_and_secure",
+            "residual_risks": ["fine", "bad\x1b[31m", 42],
+            "report_links": [{"id": "../../.env"}, {"id": "reports/pre-remediation/../../.env"},
+                             {"id": "C:\\Windows\\win.ini"}, {"id": "reports/pre-remediation/tools/consolidate_results.py"},
+                             {"id": "reports/pre-remediation/executive-summary.md", "label": "x" * 500}]},
+        "findings": [{"id": "F-003", "classification": "exploited_everywhere", "confidence": 7}]}), encoding="utf-8")
+    monkeypatch.setattr(assessment, "INDEX_PATH", idx)
+    body = assessment.overview()
+    s = body["summary"]
+    assert s["scope"] is None and s["remediation_status"] is None
+    assert s["residual_risks"] == ["fine"]
+    assert s["report_links"] == [{"id": "reports/pre-remediation/executive-summary.md",
+                                  "label": "reports/pre-remediation/executive-summary.md"}]
+    assert body["findings"][0]["classification"] is None and body["findings"][0]["confidence"] is None
+    # Computed counts never come from the index.
+    assert s["controls_exercised"]["not_executed"] == 36
+
+
+def test_report_folder_is_listed_top_level_documents_only(client):
+    from app.demo import evidence
+    ids = evidence.file_ids()
+    reports = {i for i in ids if i.startswith("reports/")}
+    assert "reports/pre-remediation/executive-summary.md" in reports
+    assert all(i.count("/") == 2 and i.endswith((".md", ".json")) for i in reports)   # no tools/*.py, no subfolders
+    for bad in ("reports/pre-remediation/tools/consolidate_results.py", "reports/../app/main.py",
+                "reports/pre-remediation/../../.env"):
+        assert client.get("/demo/evidence/file", params={"id": bad}).status_code == 404, bad
+
+
 def test_copying_evidence_does_not_change_counts(tmp_path, monkeypatch):
     """Determinism: the same files give the same overview."""
     shutil.copytree(assessment.RUNS_DIR, tmp_path / "runs")

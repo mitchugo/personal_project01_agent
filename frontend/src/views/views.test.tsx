@@ -205,6 +205,58 @@ describe("Attack evidence", () => {
     expect(screen.getAllByText(/11111111-2222-3333-4444-555555555555/)).toHaveLength(2);   // one per trial
   });
 
+  const SUMMARY = {
+    scope: "Local synthetic lab only.", assessment_period: "5-6 November 2026", remediation_status: "not_started",
+    residual_risks: [`F-003 open. ${HOSTILE}`],
+    report_links: [{ id: "reports/pre-remediation/executive-summary.md", label: "Executive summary" }],
+    controls_exercised: { proposals: 100, not_executed: 36, requests_rejected_before_model: 3, trials_without_tool_call: 24,
+      refusals: [{ tool: "read_customer", status: "not_found", count: 18 }] },
+  };
+  const withSummary = (summary: unknown, findings: unknown[] = OVERVIEW.findings) => ({ ...OVERVIEW, summary, findings });
+
+  it("shows the assessment overview with remediation not started and computed control counts", async () => {
+    mockApi({
+      "/demo/assessment": () => json(withSummary(SUMMARY, [
+        { ...OVERVIEW.findings[0], classification: "confirmed_mock_only" },
+        { ...OVERVIEW.findings[0], id: "F-003", severity: "Medium", exploited_live: true, classification: "confirmed_live" }])),
+      "/demo/evidence": () => json({ specs: [], evidence: [] }),
+    });
+    render(<Evidence />);
+    const panel = await screen.findByTestId("assessment-overview");
+    expect(within(panel).getByTestId("remediation-status")).toHaveTextContent("Remediation: Not started");
+    expect(within(panel).getByTestId("not-executed")).toHaveTextContent("36 of 100");
+    expect(within(panel).getByText(/read_customer · not_found ×18/)).toBeInTheDocument();
+    expect(within(panel).getByText(/24 attack trials made no tool call/)).toBeInTheDocument();
+    expect(within(panel).getByTestId("classification-F-002")).toHaveTextContent("not reproduced live");
+    expect(within(panel).getByTestId("classification-F-003")).toHaveTextContent("Confirmed live (synthetic lab)");
+    expect(within(panel).queryByText(/Retested|Remediated|Fixed/)).toBeNull();
+    expect(document.querySelector("img")).toBeNull();                         // residual-risk text rendered inertly
+    expect((window as unknown as { __pwned?: boolean }).__pwned).toBeUndefined();
+  });
+
+  it("never implies remediation when the status is missing, and opens report links by ID only", async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({
+      "/demo/evidence/file": () => json({ id: "reports/pre-remediation/executive-summary.md", name: "executive-summary.md",
+        content: "# Executive Summary" }),
+      "/demo/assessment": () => json(withSummary({ ...SUMMARY, remediation_status: null })),
+      "/demo/evidence": () => json({ specs: [], evidence: [] }),
+    });
+    render(<Evidence />);
+    const panel = await screen.findByTestId("assessment-overview");
+    expect(within(panel).getByTestId("remediation-status")).toHaveTextContent("Remediation: Unknown");
+    await user.click(within(panel).getByRole("button", { name: "Executive summary" }));
+    expect(await screen.findByRole("heading", { name: "Executive Summary" })).toBeInTheDocument();
+    expect(calls.some((c) => c.url === "/api/demo/evidence/file?id=reports%2Fpre-remediation%2Fexecutive-summary.md")).toBe(true);
+  });
+
+  it("omits the overview panel when the server provides no summary", async () => {
+    routes();
+    render(<Evidence />);
+    await screen.findByRole("table", { name: "Attack overview" });
+    expect(screen.queryByTestId("assessment-overview")).toBeNull();
+  });
+
   it("shows mock-only specs with a mock caveat and no live model", async () => {
     const user = userEvent.setup();
     routes();

@@ -344,3 +344,40 @@ A running record of what was learned each session. Keep entries short and honest
 **Next session**
 - Session 12 (not started): remediation. Sensitive-change confirmation for email updates (F-003); taint or confirmation controls
   for state changes after untrusted reads (F-002); draft-body checks; fix H-001; then re-run the same dataset (mock + live) for before/after evidence.
+  *Superseded: the project owner re-scoped Session 12 as the consolidated assessment report. Remediation moves to Session 13.*
+
+## Session 12 — 2026-11-06 — Consolidated pre-remediation assessment and Phase C plan
+
+**Done**
+- Branch `feature/session-12-assessment-report` from `develop` `5dd35b9`. Verified that Session 11 was merged; `v0-baseline` (`650f20a`) unchanged.
+- Recomputed every Phase B metric from committed records with a standard-library script (`reports/pre-remediation/tools/`).
+  The results:
+  - all 16 README figures matched;
+  - 95 live trials, 87 attacks, 3/87 objectives (all F-003), 0 bypasses, 8/8 benign;
+  - 182 calls, $1.080334.
+- Recorded 11 discrepancies, D-01 to D-11. None changes a verdict.
+- Wrote the pre-remediation package:
+  - executive summary;
+  - full report;
+  - findings validation;
+  - control coverage matrix;
+  - risk register;
+  - remediation backlog (R-01–R-18).
+- Added Session 12 addenda to F-002, F-003, O-001 and ENG-001. The original text is untouched.
+- Attack Evidence UI: a read-only "Assessment overview" panel (computed control counts, finding classes, residual risks,
+  report links, "Remediation: Not started"). 5 backend and 3 Vitest tests; 4/4 backend and 2/2 UI mutants killed.
+- No model calls; no change to any security control, tool, harness or dataset.
+
+**Learned / reinforced**
+- **The same number can mean two sets.** "15/15 declined" (Session 10) and "0/15" (F-002) cover different cases. Defining the
+  set next to every count matters more than the count.
+- **"Cross-tenant" needs checking against the argument.** The A02-XT5 hash matched `ns-cust-0001`, an ID that exists nowhere.
+  So 3 of Session 11's "18 cross-tenant" refusals were ID-confusion probes. Hashed evidence can still be checked when the candidate value is known.
+- **A refusal has two meanings:** an API-level `stop_reason: refusal`, or the model declining in text. Reports must say which.
+- **Severity and confidence are different axes.** F-002 has high confidence that the gap exists but unknown likelihood, so
+  its Medium is flagged for review rather than defended as an exploit rating.
+- **A business-process gap is not an AI vulnerability, but the agent amplifies it.** F-003 would exist with a manual form;
+  the agent removes the friction and ignores the tenant's own policy text.
+
+**Next session**
+- Session 13 (Phase C): follow the backlog order (R-07, R-08, then R-01–R-06, then the R-10 retest). Live retest needs an approved budget.

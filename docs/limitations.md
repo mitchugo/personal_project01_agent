@@ -181,3 +181,25 @@ Read this before drawing conclusions from the project.
   Tracked as [ENG-001](engineering/ENG-001-intermittent-sqlite-access-violation.md).
 - **O-001 (informational):** the shared tool schema shows a Northstar-format example ID to every tenant.
   See [O-001](../evidence/findings/O-001-tenant-specific-example-id-in-shared-tool-schema.md).
+
+## Session 12: pre-remediation assessment package
+
+- **Superseded statements above:** the "Current state (Session 6)" section is kept for history, and several of its lines are no longer true:
+  - "`/chat` does nothing" and "No model provider is connected": the agent runs on Claude when `AGENT_PROVIDER=anthropic`;
+  - "one access violation seen once": see ENG-001.
+
+  The Session 10 line "Cases not run live: A02, A03, A05 and A07" was superseded by Session 11.
+- **No remediation has been implemented.** The report, risk register and backlog in [reports/](../reports/README.md) describe the
+  system as it was at `5dd35b9`. F-003 and F-002 remain open.
+- **The report is an interpretation of existing evidence, not new testing.** No model calls and no new attacks were made in Session 12. Every number
+  was recomputed from committed records by `reports/pre-remediation/tools/consolidate_results.py`.
+- **Remaining evidence gaps** (see `evidence/runs/session-12-assessment/evidence-verification.md`):
+  - the Session 6 smoke request (≈ $0.0092) has no committed record;
+  - live `run.json` files store an unused `behaviour: "obedient"` default.
+- **Taxonomy references are indicative.** OWASP Agentic (ASI) and MITRE ATLAS identifiers were checked against secondary sources
+  only. No compliance or certification claim is made.
+- **The Assessment Overview panel** in the Attack Evidence view shows curated text (scope, residual risks, remediation status)
+  validated server-side; the counts are computed from trial records. The `reports/pre-remediation/` folder is readable through
+  the same ID-only evidence route (top-level `.md`/`.json` only), and only while the local demo gate is open.
+- **ENG-001 recurred twice** in Session 12 (2 of 4 full backend runs crashed in fixture database creation; each immediate re-run
+  passed: 550/550 before the changes, 555/555 after). Root cause unknown.

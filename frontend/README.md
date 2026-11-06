@@ -86,7 +86,7 @@ audit events stay in the tenant-scoped Security Inspector. Opening the page make
 
 ```powershell
 npm run typecheck
-npm test                                   # Vitest + Testing Library (jsdom): 32 tests
+npm test                                   # Vitest + Testing Library (jsdom): 35 tests
 $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD="1"
 npm run test:e2e                           # Playwright with installed Microsoft Edge: 11 checks
 ```
