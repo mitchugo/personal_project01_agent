@@ -1,8 +1,9 @@
 """Read-only access to attack specifications and previously captured evidence.
 
 * Specs: attacks/specs/A0*.md, parsed into summary fields plus the raw Markdown.
-* Evidence: files in evidence/runs/<run>/ and evidence/findings/, restricted to an
-  extension allowlist and size cap, addressed ONLY by IDs from this module's own
+* Evidence: files in evidence/runs/<run>/, evidence/findings/ and the published
+  pre-remediation report folder (reports/pre-remediation/, top level only), restricted
+  to an extension allowlist and size cap, addressed ONLY by IDs from this module's own
   listing. Client-supplied paths are never joined to the filesystem.
 * Key-like strings are redacted again on the way out (defence in depth; the
   evidence was already scanned before commit).
@@ -17,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SPECS_DIR = REPO_ROOT / "attacks" / "specs"
 RUNS_DIR = REPO_ROOT / "evidence" / "runs"
 FINDINGS_DIR = REPO_ROOT / "evidence" / "findings"
+REPORTS_DIR = REPO_ROOT / "reports" / "pre-remediation"   # sanitised Session 12 report documents
 
 ALLOWED_EXTENSIONS = {".md", ".json", ".jsonl", ".txt"}
 MAX_FILE_BYTES = 512 * 1024
@@ -73,12 +75,19 @@ def _evidence_files() -> dict[str, Path]:
     roots = [(f"runs/{d.name}", d) for d in sorted(RUNS_DIR.iterdir()) if d.is_dir()] if RUNS_DIR.is_dir() else []
     if FINDINGS_DIR.is_dir():
         roots.append(("findings", FINDINGS_DIR))
+    if REPORTS_DIR.is_dir():
+        roots.append(("reports/pre-remediation", REPORTS_DIR))
     for prefix, directory in roots:
         for path in sorted(directory.iterdir()):
             if (path.is_file() and path.suffix in ALLOWED_EXTENSIONS
                     and path.stat().st_size <= MAX_FILE_BYTES and not path.name.startswith(".")):
                 files[f"{prefix}/{path.name}"] = path
     return files
+
+
+def file_ids() -> set[str]:
+    """IDs that read_evidence() will serve. Used to validate curated links (no path joining)."""
+    return set(_evidence_files())
 
 
 def list_evidence() -> list[dict]:

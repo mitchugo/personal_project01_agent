@@ -152,7 +152,7 @@ def evidence_index() -> dict:
 
 @router.get("/assessment")
 def assessment_overview() -> dict:
-    """Offline red-team results (Sessions 9-10), computed from allowlisted, sanitised trial records."""
+    """Offline red-team results (Sessions 9-11), computed from allowlisted, sanitised trial records."""
     return assessment.overview()
 
 

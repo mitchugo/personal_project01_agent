@@ -167,6 +167,24 @@ export interface Finding {
   remediation: string | null;
   retest_status: string | null;
   evidence_ref: string | null;
+  classification?: "confirmed_live" | "confirmed_mock_only" | "observation" | "mitigated" | null;
+  confidence?: string | null;
+}
+
+// Session 12: programme-level overview. Curated text is validated server-side; counts are computed from records.
+export interface AssessmentSummary {
+  scope: string | null;
+  assessment_period: string | null;
+  remediation_status: "not_started" | "in_progress" | "retested" | null;
+  residual_risks: string[];
+  report_links: { id: string; label: string }[];
+  controls_exercised: {
+    proposals: number;
+    not_executed: number;
+    refusals: { tool: string; status: string; count: number }[];
+    requests_rejected_before_model: number;
+    trials_without_tool_call: number;
+  };
 }
 
 export interface AssessmentOverview {
@@ -186,6 +204,7 @@ export interface AssessmentOverview {
     invalid_records: number;
   };
   findings: Finding[];
+  summary?: AssessmentSummary;
   comparisons: unknown[];
 }
 

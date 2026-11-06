@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type {
-  AssessmentOverview, AssessmentStatus, AttackSpec, EvidenceFile, EvidenceIndex, Finding, RunTrials, SpecAssessment,
-  TrialRecord,
+  AssessmentOverview, AssessmentStatus, AssessmentSummary, AttackSpec, EvidenceFile, EvidenceIndex, Finding, RunTrials,
+  SpecAssessment, TrialRecord,
 } from "../api/types";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { SafeMarkdown } from "../components/SafeMarkdown";
@@ -52,6 +52,16 @@ const RUN_LABEL: Record<string, string> = {
   "s11-live-benign": "S11 live · benign",
 };
 
+export const CLASSIFICATION_LABEL: Record<string, string> = {
+  confirmed_live: "Confirmed live (synthetic lab)",
+  confirmed_mock_only: "Provisional: scripted model only, not reproduced live",
+  observation: "Observation",
+  mitigated: "Mitigated",
+};
+
+// Anything other than an explicit server value is shown as unknown: the page never implies remediation happened.
+const REMEDIATION_LABEL: Record<string, string> = { not_started: "Not started", in_progress: "In progress", retested: "Retested" };
+
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const usd = (x: number | null | undefined) => (x == null ? "—" : `$${x.toFixed(4)}`);
 
@@ -75,6 +85,78 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
       <p className="mt-0.5 font-mono text-lg font-semibold">{value}</p>
       {hint && <p className="text-[11px] text-muted">{hint}</p>}
     </div>
+  );
+}
+
+function AssessmentOverviewPanel({ summary, findings, onFile }: {
+  summary: AssessmentSummary; findings: Finding[]; onFile: (id: string) => void;
+}) {
+  const c = summary.controls_exercised;
+  const remediation = summary.remediation_status ? REMEDIATION_LABEL[summary.remediation_status] : "Unknown";
+  return (
+    <section aria-labelledby="overview-title" data-testid="assessment-overview"
+      className="space-y-4 rounded-xl border border-line bg-white p-5">
+      <header className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 id="overview-title" className="text-base font-bold">Assessment overview (pre-remediation)</h3>
+          {summary.assessment_period && <p className="text-xs text-muted">{summary.assessment_period}</p>}
+        </div>
+        <span data-testid="remediation-status"
+          className="rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-900">
+          Remediation: {remediation}
+        </span>
+      </header>
+      {summary.scope && <p className="max-w-4xl text-sm leading-6">{summary.scope}</p>}
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="rounded-lg border border-line px-3 py-3">
+          <Label>Findings by evidence class</Label>
+          <ul className="mt-1.5 space-y-1.5 text-xs">
+            {findings.map((f) => (
+              <li key={f.id} data-testid={`classification-${f.id}`}>
+                <span className="font-mono font-semibold">{f.id}</span> · {f.severity ?? "—"}
+                <span className="block text-muted">{f.classification ? CLASSIFICATION_LABEL[f.classification] : "Unclassified"}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-lg border border-line px-3 py-3">
+          <Label>Backend controls exercised (live)</Label>
+          <p className="mt-1 font-mono text-xs font-semibold" data-testid="not-executed">
+            {c.not_executed} of {c.proposals} model proposals not executed
+          </p>
+          <ul className="mt-1 space-y-0.5 font-mono text-xs">
+            {c.refusals.map((r) => <li key={`${r.tool}-${r.status}`}>{r.tool} · {r.status} ×{r.count}</li>)}
+            <li>HTTP 422 before the model ×{c.requests_rejected_before_model}</li>
+          </ul>
+          <p className="mt-1.5 text-xs text-muted">
+            {c.trials_without_tool_call} attack trials made no tool call, so no backend control was reached in them.
+          </p>
+        </div>
+        <div className="rounded-lg border border-line px-3 py-3">
+          <Label>Residual risks</Label>
+          <ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-5">
+            {summary.residual_risks.map((r) => <li key={r}>{r}</li>)}
+          </ul>
+        </div>
+      </div>
+
+      {summary.report_links.length > 0 && (
+        <div>
+          <Label>Reports and sanitised evidence</Label>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {summary.report_links.map((l) => (
+              <button key={l.id} type="button" onClick={() => onFile(l.id)}
+                className="rounded border border-line px-2 py-0.5 text-xs hover:bg-canvas">{l.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="text-[11px] text-muted">
+        Counts are computed from trial records. Scope, residual risks and remediation status are curated text. No fix has been
+        applied or retested; private transcripts are not available here.
+      </p>
+    </section>
   );
 }
 
@@ -402,6 +484,10 @@ export function Evidence() {
         {assessment && <p className="mt-1 max-w-3xl text-xs text-muted">{assessment.scope}</p>}
       </div>
       {error !== null && <ErrorBanner error={error} />}
+
+      {assessment?.summary && (
+        <AssessmentOverviewPanel summary={assessment.summary} findings={assessment.findings} onFile={(id) => void openFile(id)} />
+      )}
 
       {t && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6" aria-label="Live assessment totals">

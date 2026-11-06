@@ -4,6 +4,7 @@ What this module reads (fixed allowlist; nothing chosen by the client):
 * trial records in the run directories listed in ``RUNS`` (``trials.jsonl`` and ``run.json`` only);
 * the curated narrative/findings index ``evidence/assessment-index.json``;
 * the attack dataset (case IDs per spec, for coverage).
+Curated report links are accepted only if ``app.demo.evidence`` already lists them (ID only).
 It never reads private transcripts (they are not in the repository, and no code path opens
 any other file name), runs attacks, or calls a model.
 
@@ -20,6 +21,8 @@ import json
 import math
 import re
 from pathlib import Path
+
+from app.demo import evidence as evidence_files
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNS_DIR = REPO_ROOT / "evidence" / "runs"
@@ -51,6 +54,9 @@ STATUSES = ("completed", "refused", "errored", "timeout", "budget_stopped")
 TABLES = ("customers", "email_drafts", "refund_requests", "refund_ledger", "knowledge_documents", "tickets",
           "users", "tenants")
 EVENTS = ("identity.resolve", "tool.invoke", "refund.approval", "refund.execution")
+# Session 12: finding classification and programme status (curated, enum-validated).
+CLASSIFICATIONS = ("confirmed_live", "confirmed_mock_only", "observation", "mitigated")
+REMEDIATION_STATUSES = ("not_started", "in_progress", "retested")
 
 _CASE = re.compile(r"^(A0[1-8]|B[0-9]{2})-[A-Z0-9]{2,6}$")
 _TRIAL = re.compile(r"^(A0[1-8]|B[0-9]{2})-[A-Z0-9]{2,6}#[0-9]{1,3}$")
@@ -357,8 +363,47 @@ def _findings(index: dict) -> list[dict]:
             "remediation": _text(f.get("remediation"), 400),
             "retest_status": _text(f.get("retest_status"), 200),
             "evidence_ref": _str(f.get("evidence_ref"), _EVIDENCE_REF, maxlen=140),
+            "classification": _str(f.get("classification"), enum=CLASSIFICATIONS),
+            "confidence": _text(f.get("confidence"), 200),
         })
     return out
+
+
+def _controls_exercised(live_attack: list[dict]) -> dict:
+    """Backend refusals in live attack trials, computed from records (never curated)."""
+    refusals: dict[tuple[str, str], int] = {}
+    for t in live_attack:
+        for turn in t["turns"]:
+            for a in turn["actions"]:
+                if a["status"] not in (None, "ok"):
+                    key = (a["tool"], a["status"])
+                    refusals[key] = refusals.get(key, 0) + 1
+    actions = [a for t in live_attack for turn in t["turns"] for a in turn["actions"]]
+    return {
+        "proposals": sum(len(turn["proposed_tools"]) for t in live_attack for turn in t["turns"]),
+        "not_executed": sum(1 for a in actions if a["status"] not in (None, "ok")),
+        "refusals": [{"tool": tool, "status": status, "count": n} for (tool, status), n in sorted(refusals.items())],
+        "requests_rejected_before_model": sum(any(turn["http_status"] == 422 for turn in t["turns"]) for t in live_attack),
+        "trials_without_tool_call": sum(not any(turn["proposed_tools"] for turn in t["turns"]) for t in live_attack),
+    }
+
+
+def _summary(index: dict, live_attack: list[dict]) -> dict:
+    """Programme overview: curated text (validated) + computed control counts. No outcome is curated."""
+    raw = index.get("summary") if isinstance(index.get("summary"), dict) else {}
+    listed = evidence_files.file_ids()
+    links = []
+    for link in (raw.get("report_links") or [])[:12]:
+        if isinstance(link, dict) and _str(link.get("id"), maxlen=200) in listed:
+            links.append({"id": link["id"], "label": _text(link.get("label"), 80) or link["id"]})
+    return {
+        "scope": _text(raw.get("scope"), 800),
+        "assessment_period": _text(raw.get("assessment_period"), 120),
+        "remediation_status": _str(raw.get("remediation_status"), enum=REMEDIATION_STATUSES),
+        "residual_risks": [x for x in (_text(v, 300) for v in (raw.get("residual_risks") or [])[:10]) if x],
+        "report_links": links,
+        "controls_exercised": _controls_exercised(live_attack),
+    }
 
 
 def _index() -> dict:
@@ -400,5 +445,6 @@ def overview() -> dict:
             "invalid_records": sum(r["invalid_records"] for r in runs),
         },
         "findings": _findings(index),
+        "summary": _summary(index, live_attack),
         "comparisons": [],   # Phase C before/after results will appear here; none exist yet
     }

@@ -51,6 +51,7 @@ docs/             Architecture, threat model, ADRs, learning log, limitations
 evidence/
   findings/       Written-up findings (redacted)
   runs/           Raw test/attack run outputs (redacted)
+reports/          Client-style assessment deliverables (pre-remediation package, Session 12)
 ```
 
 ## Setup
@@ -104,3 +105,4 @@ Invoke-RestMethod http://127.0.0.1:8000/audit-demo
 - [ADR-001: Server-side authorisation independent of LLM behaviour](docs/decisions/ADR-001.md)
 - [Limitations](docs/limitations.md)
 - [Learning log](docs/learning-log.md)
+- [Pre-remediation AI security assessment (Session 12)](reports/README.md): executive summary, full report, risk register, Phase C backlog

@@ -60,3 +60,16 @@ The faulting module, whether it is SQLite, Python, antivirus or the file system,
 ## Workaround
 
 Re-run the suite once. Report any unrecovered crash. Never treat a crashed run as passing.
+
+## Session 12 occurrence (2026-11-06)
+
+- **Fifth known occurrence:** the first full backend run of Session 12, on the clean `develop` tree (`5dd35b9`) before any change,
+  exited with `-1073741819` (`0xC0000005`) after about 10 tests.
+- **Faulthandler:** `app/db.py:177 create_schema` ← `app/seed.py:55 seed` ← `tests/conftest.py:78 db_path`. This is the same frame
+  as occurrences 1, 2 and the isolated-loop crashes.
+- An immediate re-run passed **550/550**.
+- **Sixth known occurrence:** the final full run after the Session 12 changes crashed in the same way (same three frames).
+  The immediate re-run passed **555/555**.
+- **Session 12 tally:** 2 crashes in 4 full-suite runs (crash, pass, crash, pass). Both crashes happened early, in fixture database creation.
+- No new diagnosis was attempted (Session 12 was a reporting session). The root cause is still **unknown**.
+- Investigation plan: R-09 in `reports/pre-remediation/remediation-backlog.md`.

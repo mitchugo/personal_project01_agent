@@ -36,3 +36,8 @@ Use a tenant-neutral example (e.g. `"<prefix>-cust-NNN"`), or none. Then re-run 
 
 `evidence/runs/session-10-live/live-A06/trials.jsonl`, A06-SS1#1–#3: the model text is stored only as hashes. The wording
 above summarises the private analyst transcript, which is kept outside the repository.
+
+## Addendum: Session 12 validation (2026-11-06)
+
+Re-confirmed: `app/agent/tool_schemas.py:13` is unchanged on `5dd35b9`. Informational severity retained; no protected-data
+disclosure. Remediation R-08 (not started).

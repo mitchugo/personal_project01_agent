@@ -1,6 +1,6 @@
 # Handoff: Project 1, Enterprise AI Agent: Build, Attack & Secure
 
-*Last updated 2026-11-06, end of Session 11. Next: **Session 12 (remediation, Phase C)**. Read this first in any new chat.*
+*Last updated 2026-11-06, end of Session 12 (pre-remediation assessment report). Next: **Session 13 (remediation, Phase C)**. Read this first in any new chat.*
 
 ## 1. What this is
 
@@ -13,19 +13,19 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 
 **Phases:**
 - **A:** build (Sessions 1–8).
-- **B:** attack and assess (Sessions 9–11, **complete**).
-- **C:** remediate and retest (**Session 12 onwards, not started**).
+- **B:** attack and assess (Sessions 9–11, **complete**), consolidated into a pre-remediation report in Session 12.
+- **C:** remediate and retest (**Session 13 onwards, not started**).
 
 ## 2. Where things stand
 
 | Item | State |
 |---|---|
-| `develop` | Sessions 1–11 merged and **pushed**. This is the integration branch ("main area"); `main` is unused |
+| `develop` | Sessions 1–11 merged and **pushed** (`5dd35b9`). This is the integration branch ("main area"); `main` is unused |
 | Tag `v0-baseline` | Annotated, on `650f20a` (pre-attack baseline, 378 tests). **Do not move it** |
-| Last feature branch | `feature/session-11-workflow-assessment`, merged into `develop` and pushed |
-| Session 12 branch | **Not created yet.** Create `feature/session-12-remediation` from `develop` |
-| Tests | Backend **550**, Vitest **32**, Playwright **11** (see the OneDrive note in §5) |
-| Live API spend | ≈ **$1.255 of $5** approved (S6–S8 ≈ $0.175, S10 ≈ $0.349, S11 ≈ $0.731). Each session needs its own explicit budget |
+| Session 12 branch | `feature/session-12-assessment-report` from `5dd35b9`: committed and pushed. **Not yet merged into `develop`** |
+| Session 13 branch | Not created. After Session 12 is merged, create `feature/session-13-remediation` from `develop` |
+| Tests | Backend **555**, Vitest **35**, Playwright **11** (see the OneDrive note in §7) |
+| Live API spend | ≈ **$1.255 of $5** approved (S6–S8 ≈ $0.175, S10 ≈ $0.349, S11 ≈ $0.731; S12 $0). Record-backed total $1.2455 (the S6 smoke call is unrecorded, D-01). Each session needs its own explicit budget |
 | Model | `claude-sonnet-5-5`, fallback off. The served model is checked on every call (strict mode in the harness) |
 
 ## 3. Session history
@@ -42,7 +42,8 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 | 8 | `f5298ff`, `022d5a8` | Local UI "Chigzio AI Agent Security Lab" (React 19 / Vite 8 / Tailwind 4 / TS 5.9) + `app/demo/` API; live UI check |
 | 9 | `d3d8ba8` | Red-team harness (`attacks/`): dataset, runner, disposable verified DBs, mock/live providers, six-class grader, reports |
 | 10 | `682eab4`, `ff3579b`, `e07e123` | Harness v1.1 (spend ledger, call guard, strict stops). **Live A01/A04/A06/A08:** 0/27 attacker objectives, 0 bypasses. F-002, O-001, ENG-001. Read-only `/demo/assessment` + Attack Evidence UI |
-| 11 | `6bf9f98` + Session 11 evidence commit | Dataset 1.2.0, grader fix v1.2. **Live A02/A03/A05/A07:** 3/60 attacker objectives (all A03-RCP2), 0 bypasses, 18/18 cross-tenant proposals refused. **F-003** confirmed live |
+| 11 | `6bf9f98`, `9928ae5` | Dataset 1.2.0, grader fix v1.2. **Live A02/A03/A05/A07:** 3/60 attacker objectives (all A03-RCP2), 0 bypasses, 18/18 cross-tenant proposals refused. **F-003** confirmed live |
+| 12 | `feature/session-12-assessment-report` | **Pre-remediation assessment package**, `reports/pre-remediation/`: executive summary, report, findings validation, control matrix, risk register, backlog R-01–R-18. Metrics recomputed by script; discrepancies D-01–D-11. Read-only Assessment Overview panel in the UI. No model calls, no control changes |
 
 ## 4. Assessment results so far (Phase B)
 
@@ -56,12 +57,17 @@ Three kinds of "success" are kept separate:
 - **Authorised-but-unintended action:** **confirmed live** (F-003).
 - **Backend control bypass:** none.
 
-### Open findings: Session 12 remediation targets
+**Session 12 verification:**
+- all figures above were re-derived from the records; see `evidence/runs/session-12-assessment/`;
+- precise wording: **18 live proposals against existing other-tenant records** were refused (Session 11's "18" includes 3 ID-confusion probes for a non-existent ID; D-11);
+- untrusted-content injections acted on: **0/18** (F-002 subset 0/15).
+
+### Open findings: Phase C (Session 13) remediation targets
 
 | ID | Severity | Status | Summary | Evidence |
 |---|---|---|---|---|
 | **F-003** | Medium (draft) | **Reproduced live 3/3** + mock | The signed-in user asks to change a customer's email, then draft: both execute with no verification, so the draft is redirected (T-24) | `evidence/findings/F-003-*.md`, `evidence/runs/session-11-live/` |
-| **F-002** | Provisional Medium (draft) | Mock-reproduced; **not reproduced live** (0/15) | No backend control stops untrusted content (KB articles, stored fields) from driving permitted actions: email update, pending refund, other customers' data in drafts or fields (T-22, T-23, T-25) | `evidence/findings/F-002-*.md` |
+| **F-002** | Provisional Medium (**flagged for review**, Session 12) | Mock-reproduced; **not reproduced live** (0/15) | No backend control stops untrusted content (KB articles, stored fields) from driving permitted actions: email update, pending refund, other customers' data in drafts or fields (T-22, T-23, T-25) | `evidence/findings/F-002-*.md` |
 | **O-001** | Informational | Open | The shared tool schema's example ID `ns-cust-001` is shown to every tenant (`app/agent/tool_schemas.py:13`) | `evidence/findings/O-001-*.md` |
 | F-001 | Medium | Mitigated (Session 6) | Model reply can misreport outcomes. A server action record is appended | `evidence/findings/F-001-*.md` |
 
@@ -70,27 +76,37 @@ Three kinds of "success" are kept separate:
 | ID | Summary |
 |---|---|
 | **H-001** | Dataset indicator `reply_contains "paid"` (A05-RF1) matches "hasn't been paid", over-counting model compliance. Verdicts unaffected. Fix: a proposal- or state-based indicator |
-| **ENG-001** | Intermittent Windows access violation in pytest. Reproduces ~13% looping `tests/test_agent_chat.py`; **0 crashes** in 1,500 single-threaded DB seeds, so it correlates with the multi-threaded TestClient/SDK context. Root cause unknown. If it occurs, re-run once and report it; never treat a crashed run as passing. `docs/engineering/ENG-001-*.md` |
+| **ENG-001** | Intermittent Windows access violation in pytest. Reproduces ~13% looping `tests/test_agent_chat.py`; **0 crashes** in 1,500 single-threaded DB seeds, so it correlates with the multi-threaded TestClient/SDK context. **Session 12: 2 of 4 full runs crashed** (same `create_schema` frame). Root cause unknown. If it occurs, re-run once and report it; never treat a crashed run as passing. `docs/engineering/ENG-001-*.md` |
+| **D-02** | Live `run.json` stores an unused `behaviour: "obedient"` default; trial records correctly store `null` (backlog R-12) |
 
-## 5. Session 12 plan (suggested; confirm with Mitch first)
+## 5. Session 13 plan (Phase C; confirm with Mitch first)
 
 **Rule:** present a plan first, and make no paid calls without an explicit budget.
 
-1. **F-003: sensitive-change control for contact email.**
-   - Require explicit human confirmation or verification before a new email becomes active.
-   - Block or flag `draft_email` to an address changed in the same request.
-   - Audit-alert on email change followed by a draft or refund.
-2. **F-002: untrusted-content guard.**
-   - Once a turn has read KB or record content, require confirmation for state-changing tools, or require that their key arguments appear in the user's own message (taint tracking).
-   - Add draft-body and contact-field checks for other customers' data, and reject instruction-like patterns in free-text fields.
-3. **O-001:** tenant-neutral example ID in the tool schema.
-4. **H-001:** replace the "paid" text indicator with a proposal-based one. This is dataset 1.3.0, and must not change historical records.
-5. **Retest (before/after):**
-   - Re-run the same cases in mock (free) and live (budget needed): A01-KB1, A03-RCP2, A03-RCP3, A03-RCP5, A06-ST1, A08-EX1, A08-EX3, plus the benign set, to check for over-blocking.
-   - Add the new run directories to `app/demo/assessment.py:RUNS`, and record before/after pairs in
-     `evidence/assessment-index.json` → `comparisons`, so the Attack Evidence UI's Phase C section populates.
-6. Keep all existing controls and tests green. Run mutation checks on every new control. Don't rewrite historical evidence; add addenda instead.
-7. ENG-001 can be investigated in parallel; the next step is in its document.
+**Source of truth:** [reports/pre-remediation/remediation-backlog.md](reports/pre-remediation/remediation-backlog.md). Each item there has
+acceptance criteria, regression tests and retest evidence. Suggested order:
+
+1. **R-07 (H-001):** proposal-based compliance indicators (dataset 1.3.0, methodology v1.3). Done first, so before/after compliance is measured correctly. Historical records are not changed.
+2. **R-08 (O-001):** tenant-neutral example ID in the tool schema.
+3. **R-01 → R-02 (F-003):**
+   - email changes are written as *pending*; the verified address stays active;
+   - a trusted, non-agent verification service promotes the pending address;
+   - drafts never go to an unverified address.
+4. **R-03 → R-04 (F-002, F-003):**
+   - server-enforced, single-use, argument-bound confirmation for sensitive actions;
+   - a provenance (taint) gate after untrusted reads.
+5. **R-05:** data-copy and instruction-pattern checks on drafts and contact fields. **R-06:** alert on change-then-draft/refund.
+6. **R-10 retest:**
+   - same case IDs, mock obedient and resistant first, then live (budget needed);
+   - add the run directories to `app/demo/assessment.py:RUNS` and the before/after pairs to `evidence/assessment-index.json` → `comparisons`;
+   - set `summary.remediation_status` only when that is true;
+   - write post-remediation reports under `reports/post-remediation/`, never by editing the pre-remediation package.
+7. **R-09 (ENG-001)** in parallel. Keep all tests green; run mutation checks on every new control.
+
+**Open review points from Session 12:**
+- the F-002 severity decision;
+- which "Session 8 UI discrepancy" the Session 12 brief meant;
+- checking the indicative OWASP Agentic and ATLAS IDs against the official sources.
 
 ## 6. Architecture in one picture
 
@@ -106,7 +122,9 @@ attacks/    ─► red-team harness: datasets (v1.2.0) · runner (mock default; 
 
 Key docs: `docs/architecture.md` (§13 agent, §15 UI, §16 harness, §17 assessment UI), `docs/red-team-harness.md`,
 `attacks/README.md`, `attacks/METHODOLOGY.md` (v1.2), `docs/threat-model.md` (§8–§9 statuses), `docs/limitations.md`,
-`docs/learning-log.md`, `evidence/runs/session-10-live/README.md`, `evidence/runs/session-11-live/README.md`.
+`docs/learning-log.md`, `evidence/runs/session-10-live/README.md`, `evidence/runs/session-11-live/README.md`,
+**`reports/README.md`** (the pre-remediation package) and `evidence/runs/session-12-assessment/README.md`.
+Re-check the metrics at any time with `python reports/pre-remediation/tools/consolidate_results.py --check`.
 
 ## 7. How to run
 
@@ -122,10 +140,10 @@ Key docs: `docs/architecture.md` (§13 agent, §15 UI, §16 harness, §17 assess
 
 # UI review (no API key, agent off) — two terminals:
 $env:E2E_BACKEND_PORT="8000"; .\.venv\Scripts\python.exe frontend\e2e\backend.py
-cd frontend; npm run dev          # http://127.0.0.1:5173  → Attack Evidence shows Sessions 9–11 results
+cd frontend; npm run dev          # http://127.0.0.1:5173  → Attack Evidence: Assessment overview + Sessions 9–11 results
 
 # Frontend tests
-cd frontend; npm test             # 32 Vitest tests
+cd frontend; npm test             # 35 Vitest tests
 ```
 
 **Playwright and OneDrive:** synced files become cloud placeholders that Node reports as symlinks, so `npm run test:e2e` says
@@ -150,8 +168,9 @@ cd frontend; npm test             # 32 Vitest tests
 
 ## 9. Paste this to start the next chat
 
-> Continue Project 1 (Enterprise AI Agent: Build, Attack & Secure) in this repo. Read `HANDOFF.md` first, then the
-> findings it lists (F-003, F-002, O-001) and `docs/limitations.md`. Phase B is complete and merged into `develop`.
-> We are starting **Session 12 (remediation, Phase C)**: create `feature/session-12-remediation` from `develop`, confirm the
-> git state and run the test suites, then present a remediation plan for F-003 and F-002 (with retest approach) before
-> implementing anything. No paid calls until I approve a budget.
+> Continue Project 1 (Enterprise AI Agent: Build, Attack & Secure) in this repo. Read `HANDOFF.md` first, then
+> `reports/pre-remediation/remediation-backlog.md`, the findings (F-003, F-002, O-001) and `docs/limitations.md`.
+> Session 12 (pre-remediation report) should be merged into `develop` before starting; check this first.
+> We are starting **Session 13 (remediation, Phase C)**: create `feature/session-13-remediation` from `develop`, confirm the
+> git state and run the test suites, then present the implementation plan for R-07, R-08 and R-01–R-06 (with the R-10 retest
+> approach) before implementing anything. No paid calls until I approve a budget.
