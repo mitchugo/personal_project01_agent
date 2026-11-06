@@ -499,3 +499,52 @@ The architecture above was reviewed end to end and frozen as the pre-attack base
   `agent.run`, `chat.message` and `http.request` for each request.
 - Control status matrix, configuration and versions: [evidence/runs/session-07-baseline/](../evidence/runs/session-07-baseline/README.md).
 - Next phase: attack campaigns A01–A08 ([attacks/specs/](../attacks/specs/README.md)).
+
+## 15. Local demonstration UI (Session 8)
+
+```mermaid
+flowchart LR
+    subgraph Browser["Browser (untrusted, local)"]
+        UI["React/Vite UI :5173<br/>no secrets, no storage"]
+    end
+    subgraph Dev["Vite dev server (local only)"]
+        PX["/api proxy (same origin)"]
+    end
+    subgraph Server["FastAPI 127.0.0.1:8000"]
+        CHAT["POST /chat (unchanged)"]
+        GATE{"/demo gate<br/>DEMO_UI=local AND APP_ENV=local<br/>AND IDENTITY_MODE=local-fixture<br/>else 404"}
+        DEMO["/demo/config · inspector · refunds · evidence"]
+        ID["get_dev_principal<br/>(X-Dev-User-Id → DB role/tenant)"]
+        BUF["Inspector buffer<br/>sanitised allowlist, in memory"]
+        APPR["app.approvals (unchanged)"]
+        AG["Agent runtime → gateway → authz → repos"]
+    end
+    DB[("SQLite (synthetic)")]
+    LLM["Claude API"]
+
+    UI --> PX --> CHAT
+    PX --> GATE --> DEMO
+    CHAT --> ID
+    DEMO --> ID
+    CHAT --> AG --> DB
+    AG --> LLM
+    DEMO --> BUF
+    DEMO --> APPR --> DB
+    AG -. audit events .-> BUF
+    APPR -. audit events .-> BUF
+```
+
+**New HTTP boundary (TB7: browser → `/demo`).**
+
+| Rule | Where enforced |
+|---|---|
+| `/demo/*` returns 404 unless all three env values are exact; checked per request, before identity | `app/demo/gate.py` (router-wide dependency) |
+| Identity = `X-Dev-User-Id` only; role and tenant from DB; body fields `role`/`tenant_id`/`approved_by` give 422 | existing `get_dev_principal`; strict request models |
+| Inspector shows only allowlisted fields, only for the caller's tenant; never `/audit-demo` | `app/demo/inspector.py`, `routes.inspector` |
+| Approve/execute re-run every approval-service check; no reject route (no backend transition) | `app/approvals.py` (unchanged) |
+| Evidence served only by IDs from its own listing; extension and size allowlist; key-like strings redacted | `app/demo/evidence.py` |
+| CORS off by default; only an explicit loopback origin when configured | `app/demo/gate.allowed_cors_origin` |
+| Browser never reaches SQLite or Anthropic; no secrets in responses | Vite proxy to FastAPI only; tests |
+
+The UI is a presentation layer. It adds **no** security control: rendering hygiene (`SafeMarkdown`, no images
+or links) only protects the browser that displays the text.

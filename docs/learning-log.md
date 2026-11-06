@@ -202,3 +202,25 @@ A running record of what was learned each session. Keep entries short and honest
 
 **Next session**
 - Execute A01–A08 with repeated live samples under an explicit budget; turn each deterministic variant into a regression test.
+
+## Session 8 — 2026-11-05 — Local security demonstration UI
+
+**Done**
+- Branch `feature/session-08-security-ui` (from `develop`; `v0-baseline` untouched).
+- Backend `app/demo/`: fail-closed gate, sanitised tenant-scoped inspector buffer, refund queue routes that call
+  `app.approvals` unchanged, evidence reader by listed ID only, optional loopback-only CORS. 74 new backend tests.
+- Frontend (React 19, Vite 8, Tailwind 4, TypeScript 5.9): Workspace, Security Inspector, Approvals, Attack Evidence.
+  28 unit tests, 11 Playwright checks on installed Edge (2 demos, 4 axe scans, 4 mobile layouts). No paid calls in any test.
+- Backend suite went from 378 to 452 passing.
+
+**Learned / reinforced**
+- **Don't let the UI pre-filter permissions.** Leaving Approve enabled for every role makes the backend's refusal visible,
+  which is the point of a security demonstration.
+- **Order gates before identity.** A disabled `/demo` returns 404 even without an identity header; a 401 would reveal the route.
+- **Two layers can hide each other in tests.** Removing `skipHtml` didn't fail the raw-HTML tests, because react-markdown never
+  renders raw HTML anyway. The image and link restrictions were the controls the tests actually depended on.
+- **Pin versions by age, not just compatibility.** Vite 8.3.6 was hours old, so I used 8.3.5. TypeScript 7 (native) was skipped for 5.9.
+- My Playwright selector used the wrong wording ("we have" vs "do we have"). Screenshots, not just green tests, confirmed the real layout.
+
+**Next session**
+- Execute A01–A08 under an explicit budget; feed results into the Attack Evidence view's reserved panels.

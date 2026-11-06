@@ -128,3 +128,11 @@ New threats identified while writing the specs (status: **Planned**, untested):
 | T-23 | Persistent (stored) injection: instruction text saved in free-text contact fields is read back by later sessions | TB3, TB4 | A1, A3 | LLM01 | Tighter field validation; output sanitisation/labelling per field |
 | T-24 | Draft redirection via a legitimate contact-email update before drafting | TB3 | A5 | LLM06 | Re-verification on email change; cool-down before drafting |
 | T-25 | Data exfiltration via draft bodies or contact fields (other customers' data copied into them) | TB3 | A1, A5 | LLM02 | Content checks on draft bodies and field values |
+
+## 7. Session 8 (local demonstration UI)
+
+| ID | Threat | Boundary | Assets | Control | Status |
+|---|---|---|---|---|---|
+| T-26 | Local demo endpoints (`/demo/*`, dev identity selector, supervisor simulation) left enabled in a deployed or shared environment, letting anyone act as any fixture user or read diagnostics | TB7 | A1, A3, A6 | Fail-closed gate (three exact env values, per request, 404); tenant-scoped inspector; loopback-only binding in docs | **Implemented + tested** (gate, tenant scope, mutation: always-open gate or unscoped inspector gives 38 test failures). Deployment configuration is not controlled by the app |
+| T-27 | Untrusted model, document or refund-reason text executes or exfiltrates in the browser (XSS, markdown image beacons, `javascript:` links) | TB7 | A1, A5 | React text rendering; `SafeMarkdown` drops raw HTML, images and links; CSP meta | **Tested** (8 payloads in unit tests; Playwright: no dialogs, no `img`, `window.__pwned` unset). Presentation-only |
+| T-28 | Approval bypass via the new UI API (forged role/tenant/approver fields, header spoofing, wrong tenant, self-approval) | TB7, TB5 | A3 | Routes call `app.approvals` unchanged; strict bodies; `get_dev_principal` | **Tested** (role, tenant, self-approval, binding mismatch, 6 forged fields, role headers, malformed IDs, no reject route) |
