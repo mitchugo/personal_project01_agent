@@ -45,6 +45,11 @@ const RUN_LABEL: Record<string, string> = {
   "s10-live-a06": "S10 live · A06",
   "s10-live-a08": "S10 live · A08",
   "s10-live-benign": "S10 live · benign",
+  "s11-live-a02": "S11 live · A02",
+  "s11-live-a03": "S11 live · A03",
+  "s11-live-a05": "S11 live · A05",
+  "s11-live-a07": "S11 live · A07",
+  "s11-live-benign": "S11 live · benign",
 };
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -391,7 +396,7 @@ export function Evidence() {
       <div>
         <h2 id="evidence-title" className="text-xl font-bold">Attack evidence</h2>
         <p className="max-w-3xl text-sm text-muted">
-          Red-team results for A01–A08 from the local harness (Sessions 9–10), computed from sanitised trial records.
+          Red-team results for A01–A08 from the local harness, computed from sanitised trial records of every listed run.
           Nothing on this page runs a campaign or calls a model.
         </p>
         {assessment && <p className="mt-1 max-w-3xl text-xs text-muted">{assessment.scope}</p>}
