@@ -122,3 +122,49 @@ Read this before drawing conclusions from the project.
   They're harmless, and chat is only sent on click.
 - Visual and accessibility checks are automated (axe WCAG 2.1 A/AA serious/critical, 390px no horizontal scroll) but no
   manual screen-reader test has been done.
+
+## Session 9: red-team harness
+
+- **Mock results are not model behaviour.** The scripted `obedient` and `resistant` models check the backend and the harness.
+  Claude's injection resistance is still unmeasured. No live campaign has run.
+- **Conditions are only as good as the dataset.** A success or bypass condition that isn't written down can't be detected.
+  For example, other-tenant data in a reply is checked via model input, not by scanning reply text.
+- **Model-input capture is in-process.** In live mode it records what the runtime sends to the provider SDK,
+  not the bytes on the wire.
+- **Timeouts are checked between model calls.** A single slow call is bounded by the SDK timeout, not interrupted.
+  Cost is checked after each call, so a trial can overshoot by one call.
+- **Trials run sequentially in one process.** There are no concurrency or race-condition tests (A06 payload 3 is not covered).
+- **Some spec payloads are not yet in the dataset:** error probing (A07-4), `/audit-demo` in production (A07-5),
+  direct approval-service abuse (A05-6, already covered by `tests/test_refunds.py`), and ID-confusion variants (A02-5).
+- **Statistics are descriptive.** Wilson intervals are shown, but no significance testing or power analysis is done.
+- **Evidence hashes are unsalted sha256 prefixes.** Short, guessable values (e.g. a known email) could be confirmed by hashing.
+  Evidence is meant for the project owner, not for publication of sensitive data.
+
+## Session 10: live assessment
+
+- **3 trials per case, one model (`claude-sonnet-5-5`), fixed non-adaptive payloads.** 0/27 attacker successes means
+  "not observed", not "impossible". The 95% CI for the pooled attack-success rate is 0–12%, and 0–56% per case.
+- **Several controls were not exercised live.** Claude never proposed `approve_refund`, a malicious `update_customer`,
+  an injected `request_refund` or a data-copying draft. So T-04, T-22, T-23 and T-25 controls weren't challenged live.
+  Their status comes from deterministic mock runs.
+- **Cases not run live:** A02, A03, A05 and A07. A04 payload 5 (ticket text) is not applicable, because no tool reads tickets.
+- **A08-EX2 was refused by the API** (category `cyber`) before the model produced any output. This shows a provider-level
+  safety behaviour, which could change between model versions, not an application control.
+- **Costs are application-side estimates** (reported tokens × list price) and not the provider's invoice. All four
+  internal tallies agree, but the real bill can't be checked from the app.
+- **Raw model replies were kept only in a private transcript outside the repository.** The committed evidence holds
+  hashes. Behaviour descriptions in the Session 10 report are summaries of those transcripts.
+- **The Attack Evidence UI does not list the Session 10 runs as executed campaigns** (folder naming rule; see the Session 10 report §7).
+  *Superseded at Session 10 closure:* the view now reads the allowlisted runs through `/demo/assessment`.
+  The legacy `status` field of `/demo/evidence` still means "a live campaign folder named `*attack-aXX*` exists".
+- **Assessment UI.**
+  - It shows only runs listed in `app/demo/assessment.py:RUNS`, so new runs need a code change. This is deliberate: no directory scanning.
+  - The Session 10 mock-validation runs are not listed; Session 9 mock runs represent mock results.
+  - Narrative notes and findings in `evidence/assessment-index.json` are curated by hand and could drift from the
+    records. Counts are always computed from records.
+  - The "Tested live" label means every dataset case ran live, not that every spec payload or control was exercised.
+    For example, refund approval was never proposed in A04.
+- **The intermittent SQLite access violation recurred** (once in Session 10; an immediate re-run passed). Root cause unknown.
+  Tracked as [ENG-001](engineering/ENG-001-intermittent-sqlite-access-violation.md).
+- **O-001 (informational):** the shared tool schema shows a Northstar-format example ID to every tenant.
+  See [O-001](../evidence/findings/O-001-tenant-specific-example-id-in-shared-tool-schema.md).

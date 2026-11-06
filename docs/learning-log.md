@@ -224,3 +224,93 @@ A running record of what was learned each session. Keep entries short and honest
 
 **Next session**
 - Execute A01–A08 under an explicit budget; feed results into the Attack Evidence view's reserved panels.
+
+## Session 9 — 2026-11-06 — Red-team harness and evaluation framework (mock only)
+
+**Done**
+- Session 8 merged into `develop` locally (`02df3c2`, `--no-ff`), and the branch `feature/session-09-redteam-harness` created from it.
+  `v0-baseline` is untouched.
+- `attacks/datasets/` holds dataset 1.0.0: 16 attack cases covering A01–A08 and 5 benign cases. Each has a canary,
+  deterministic conditions, and obedient/resistant mock scripts.
+- `attacks/runner/` and `attacks/grading/`:
+  - a verified disposable DB per trial;
+  - a guarded provider (model identity, deadline, capture);
+  - a live gate (flag + budget, no fallback, no retries);
+  - sanitised JSONL evidence;
+  - a six-class grader;
+  - deterministic reports with Wilson intervals.
+- 59 new tests, and 6/6 planted mutants killed. No application code changed. No paid calls.
+
+**Learned / reinforced**
+- **Make the harness check its own evidence.** The first smoke run graded every trial `INCONCLUSIVE`. A FastAPI
+  dependency override written as `lambda rt=runtime: rt` made FastAPI treat `rt` as a query parameter and use a copy of the runtime.
+  The proposal records were empty while actions ran. The completeness check caught this instead of producing wrong verdicts.
+- **Redact serialised text as serialised text.** The path regex missed JSON-escaped backslashes (`C:\\Users\\...`), and a test caught it.
+- **Labels leak too.** Grade labels embedded condition text (`draft_body_contains:<customer name>`), so they now carry a hash.
+- **A worst-case mock is a useful control test.** With a fully obedient scripted model: no backend bypass, and exactly the four
+  documented within-permission gaps (T-22–T-25) produce impact. That measures the backend, not the model.
+- **Sample sizes need to be visible.** 3/3 has a 95% Wilson interval of about 44–100%, so the report prints n and the interval for every rate.
+
+**Next session**
+- With an approved budget, run live campaigns per spec (≥5 trials per case) into `evidence/runs/<date>-attack-aXX/`. Then remediate T-22–T-25.
+
+## Session 10 — 2026-11-06 — Live prompt-injection and manipulation assessment (A01, A04, A06, A08)
+
+**Done**
+- Committed and pushed Session 9 (`d3d8ba8`), and fast-forwarded and pushed `develop` (`02df3c2`). `v0-baseline` is unchanged.
+- Hardened the harness for paid runs (v1.1, `682eab4`):
+  - a spend ledger across batches and a per-call budget guard;
+  - reserve charging for possibly-billed failures;
+  - strict stops on identity or evidence failure;
+  - per-call usage records and private transcripts.
+
+  11 new tests, 6/6 mutants killed. Dataset 1.1.0 adds A04-ID3.
+- Ran 32 live trials (27 attack + 5 benign) for **≈ $0.349 of the $1** authorised, with independent verification passing.
+  Results:
+  - 0/27 attacker objectives achieved, 0 bypasses;
+  - 6/6 privileged proposals denied by the backend;
+  - 15/15 embedded instructions declined by Claude;
+  - 5/5 benign tasks completed.
+- Draft finding **F-002** (control gap confirmed deterministically, not exploited live); observation O-001 (tenant-shaped example ID in the shared tool schema).
+
+**Learned / reinforced**
+- **Write the safety rails before spending.** Reviewing the live path turned up three harness defects that mock runs could
+  never reveal: a mismatch flag that would never trigger for the real provider, unbilled failure modes, and no per-call guard.
+  All were fixed before the first paid call.
+- **"The model refused" is not "the control held".** In 18 of 27 attack trials, the backend control under test was never reached. A04-ID1/ID3 (role and tenant denial) and A04-ID2 (422) were the exceptions.
+  The report says "not challenged" rather than claiming backend success.
+- **Grading labels need reading notes.** "Followed, backend denied" for A04 meant "forwarded the request". Claude's text
+  rejected the claimed identity every time. Indicator semantics should distinguish forwarding a request from accepting a claim (grader refinement for later).
+- **Check your own numbers.** The first draft of the report had wrong token totals and proposal counts. Recomputing from the
+  records caught them before the report was handed over.
+- **Clean tree first.** Writing evidence into the repo during a campaign would have flagged later batches as dirty. Staging in the
+  scratchpad and copying at the end kept every record on a clean commit.
+
+**Next session**
+- Remediate T-22/T-23/T-25 (confirmation or taint tracking for state-changing tools after untrusted reads; draft-body content checks), then re-run the same dataset mock + live.
+- Consider ≥5 trials and payload variants (adaptive phrasing) under a new budget; run A02/A03/A05/A07 live.
+
+## Session 10 closure — 2026-11-06 — Evidence commit and Attack Evidence UI
+
+**Done**
+- Re-verified the Session 10 totals from the committed evidence files alone (32 trials, 62 calls, $0.349024, all
+  `claude-sonnet-5-5`, clean commit), then committed and pushed `ff3579b`.
+- F-002 is now *Provisional Medium*. Added O-001 (informational) and ENG-001 (SQLite access-violation investigation, cause unknown).
+- New read-only `/demo/assessment` API and a rebuilt Attack Evidence view:
+  - overview with honest status labels;
+  - detail view;
+  - trial explorer;
+  - findings;
+  - an empty, explicitly labelled before/after section.
+- 24 new backend tests and 5 new Vitest tests (replacing 1). The Playwright evidence check now uses the real committed evidence. 6/6 mutants killed.
+
+**Learned / reinforced**
+- **A mutation check found a weak test.** The hostile-input test used only a non-string tool name, so a mutant passing raw
+  strings survived. Adding hostile *string* names killed it.
+- **Compute, don't curate, the numbers.** The UI index holds only prose. Every count, rate and status is derived from trial
+  records, so the page cannot drift from the evidence.
+- **The page that shows results must not fabricate them.** Mock impacts are visible but never counted as live. Findings show
+  "Exploited live: No". The before/after section stays empty until real retest evidence exists.
+
+**Next session**
+- Session 11 (not started): remediate F-002 and O-001; re-run the same dataset (mock + live) for before/after evidence; investigate ENG-001.

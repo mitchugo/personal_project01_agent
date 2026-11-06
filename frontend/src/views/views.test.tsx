@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { FixtureUser, InspectorEvent } from "../api/types";
@@ -100,18 +100,118 @@ describe("Approvals", () => {
 });
 
 describe("Attack evidence", () => {
-  it("lists specs as prepared/not executed and loads nothing paid", async () => {
-    const spec = (id: string) => ({
-      id, title: `Title ${id}`, objective: "obj", asset: "asset", entry_point: "entry", threat_ids: ["T-01"],
-      expected: "expected", status: "prepared", evidence_runs: [], markdown: `# ${id}\n<script>x</script>`,
+  const spec = (id: string) => ({
+    id, title: `Title ${id}`, objective: "obj", asset: "asset", entry_point: "entry", threat_ids: ["T-01"],
+    expected: "expected", status: "prepared", evidence_runs: [], markdown: `# ${id}\n<script>x</script>`,
+  });
+  const HOSTILE = '<img src=x onerror="window.__pwned=true"><script>window.__pwned=true</script>';
+  const result = (spec_id: string, status: string, live: Partial<Record<string, unknown>> = {}, mockTrials = 0) => ({
+    spec_id, status, categories: ["cat"], entry_points: ["kb_document"], dataset_threats: ["T-03"], dataset_cases: [`${spec_id}-X1`],
+    live: {
+      trials: 0, conclusive: 0, inconclusive: 0, cases: [], configured_models: [], actual_models: [], model_mismatches: 0,
+      objective_successes: 0, objective_success_ci95: null, backend_bypasses: 0, backend_denials: 0, model_compliance: 0,
+      refused: 0, errored: 0, evidence_incomplete: 0, outcomes: {}, runs: [], ...live,
+    },
+    mock: { trials: mockTrials, by_behaviour: {}, runs: mockTrials ? ["s9-mock-obedient"] : [] },
+    notes: { model_behaviour: HOSTILE, backend: "backend note", impact: "impact note" },
+    limitations: [HOSTILE],
+  });
+  const LIVE = { trials: 6, conclusive: 6, cases: ["A01-X1"], configured_models: ["claude-sonnet-5-5"],
+    actual_models: ["claude-sonnet-5-5"], objective_success_ci95: [0, 0.39], backend_denials: 2, runs: ["s10-live-a01"] };
+  const OVERVIEW = {
+    schema: "assessment-view/v1", scope: "Offline aggregate results.",
+    runs: [{ run_id: "s10-live-a01", session: 10, mode: "live", behaviour: null, available: true, git_commit: "682eab4",
+      git_dirty: false, dataset_version: "1.1.0", invalid_records: 0, trials: 2 },
+    { run_id: "s9-mock-obedient", session: 9, mode: "mock", behaviour: "obedient", available: true, git_commit: "02df3c2",
+      git_dirty: true, dataset_version: "1.0.0", invalid_records: 0, trials: 1 }],
+    specs: [result("A01", "tested_live", LIVE, 4), result("A02", "tested_mock", {}, 4), result("A03", "prepared"),
+      result("A04", "inconclusive", { trials: 3, inconclusive: 3, evidence_incomplete: 3, runs: ["s10-live-a04"] })],
+    totals: { live_attack_trials: 9, live_objective_successes: 0, live_backend_bypasses: 0, live_benign_trials: 5,
+      live_benign_completed: 5, live_model_calls: 62, live_cost_usd: 0.349024, live_models: ["claude-sonnet-5-5"], invalid_records: 0 },
+    findings: [{ id: "F-002", title: HOSTILE, type: "finding", severity: "Provisional Medium", status: "Open (draft)",
+      reproduction_mock: "Reproduced (mock)", reproduction_live: "Not reproduced (0/9)", exploited_live: false,
+      affected_specs: ["A01"], threats: ["T-22"], remediation: "fix", retest_status: "Not retested", evidence_ref: "findings/F-002.md" }],
+    comparisons: [],
+  };
+  const TRIAL = (id: string, outcome: string, complete = true) => ({
+    trial_id: id, test_id: id.split("#")[0], kind: "attack", mode: "live", outcome, spec_id: "A01",
+    timestamp_utc: "2026-11-06T12:00:00+00:00", status: "completed", configured_model: "claude-sonnet-5-5",
+    actual_models: ["claude-sonnet-5-5"], model_mismatch: false, principal: "ns-agent-01", tenant: "northstar",
+    entry_point: "kb_document", delivered: true, complied: false, compliant_proposal_blocked: false, compliant_proposal_executed: false,
+    turns: [{ correlation_id: "11111111-2222-3333-4444-555555555555", principal: "ns-agent-01", tenant: "northstar", http_status: 200,
+      termination: "completed", proposed_tools: ["search_kb"], decisions: [{ event: "tool.invoke", outcome: "success", decision: "allow",
+        reason: "allowed", tool: "search_kb", resource_id: null }], actions: [{ tool: "search_kb", status: "ok", detail: null }],
+      model_calls: [{ iteration: 1, model: "claude-sonnet-5-5", input_tokens: 2000, output_tokens: 80, cost_usd: 0.0048, stop_reason: "tool_use", refusal_category: null }] }],
+    db_changes: {}, usage: { model_calls: 2, input_tokens: 4000, output_tokens: 160, cost_usd: 0.011312, cost_basis: "estimated" },
+    duration_ms: 5200, evidence_complete: complete,
+  });
+
+  function routes() {
+    return mockApi({
+      "/demo/assessment/trials": () => json({ run_id: "s10-live-a01", session: 10, mode: "live", behaviour: null, git_commit: "682eab4",
+        git_dirty: false, dataset_version: "1.1.0", invalid_records: 0,
+        trials: [TRIAL("A01-X1#1", "DELIVERED_NOT_ACHIEVED"), TRIAL("A01-X1#2", "INCONCLUSIVE", false)] }),
+      "/demo/assessment": () => json(OVERVIEW),
+      "/demo/evidence": () => json({ specs: ["A01", "A02", "A03", "A04"].map(spec), evidence: [] }),
     });
-    const { calls } = mockApi({
-      "/demo/evidence": () => json({ specs: ["A01", "A02"].map(spec), evidence: [] }),
-    });
+  }
+
+  it("shows real counts and distinguishes live, mock, prepared and inconclusive", async () => {
+    const { calls } = routes();
     render(<Evidence />);
-    await waitFor(() => expect(screen.getAllByText("Prepared — not executed").length).toBeGreaterThanOrEqual(2));
-    expect(screen.getByText("Before / after comparison")).toBeInTheDocument();
-    expect(calls.map((c) => c.url)).toEqual(["/api/demo/evidence"]);
+    const table = await screen.findByRole("table", { name: "Attack overview" });
+    const statuses = [...table.querySelectorAll("[data-status]")].map((el) => el.getAttribute("data-status"));
+    expect(statuses).toEqual(["tested_live", "tested_mock", "prepared", "inconclusive"]);
+    expect(within(table).getByText("Tested with mock provider")).toBeInTheDocument();
+    expect(within(table).getByText("Inconclusive")).toBeInTheDocument();
+    expect(screen.getByTestId("success-A01")).toHaveTextContent("0/6");
+    expect(screen.getByTestId("success-A02")).toHaveTextContent("—");       // mock-only: no live success figure
+    expect(screen.getByText("0/9")).toBeInTheDocument();                       // totals strip
+    expect(calls.map((c) => c.url).sort()).toEqual(["/api/demo/assessment", "/api/demo/evidence"]);
+    expect(calls.some((c) => c.url.includes("/chat"))).toBe(false);
+  });
+
+  it("never claims a successful attack or live exploitation that the data does not contain", async () => {
+    routes();
+    render(<Evidence />);
+    await screen.findByRole("table", { name: "Attack overview" });
+    expect(screen.queryByText(/Unintended impact within permissions/)).toBeNull();
+    expect(screen.queryByText(/Backend control bypassed/)).toBeNull();
+    expect(screen.getByTestId("exploited-F-002")).toHaveTextContent("No");
+    expect(screen.getByText(/Provisional Medium/)).toBeInTheDocument();
+    expect(screen.getByText(/No remediation results exist yet/)).toBeInTheDocument();
+  });
+
+  it("renders attacker-controlled evidence text inertly", async () => {
+    routes();
+    render(<Evidence />);
+    await screen.findByRole("table", { name: "Attack overview" });
+    expect(screen.getAllByText(/onerror/).length).toBeGreaterThan(0);       // shown as text
+    expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("script")).toBeNull();
+    expect((window as unknown as { __pwned?: boolean }).__pwned).toBeUndefined();
+  });
+
+  it("explores trials of a selected run and flags incomplete evidence", async () => {
+    const user = userEvent.setup();
+    const { calls } = routes();
+    render(<Evidence />);
+    await screen.findByRole("table", { name: "Attack overview" });
+    await user.click(within(screen.getByRole("group", { name: "Assessment runs" })).getByRole("button", { name: /S10 live · A01/ }));
+    expect(await screen.findAllByTestId("trial")).toHaveLength(2);
+    expect(calls.some((c) => c.url === "/api/demo/assessment/trials?run_id=s10-live-a01")).toBe(true);
+    expect(screen.getByText("Evidence incomplete")).toBeInTheDocument();
+    expect(screen.getByText("Inconclusive (missing evidence)")).toBeInTheDocument();
+    expect(screen.getAllByText(/11111111-2222-3333-4444-555555555555/)).toHaveLength(2);   // one per trial
+  });
+
+  it("shows mock-only specs with a mock caveat and no live model", async () => {
+    const user = userEvent.setup();
+    routes();
+    render(<Evidence />);
+    const table = await screen.findByRole("table", { name: "Attack overview" });
+    await user.click(within(table).getByRole("button", { name: /A02/ }));
+    expect(await screen.findByText(/Mock provider only: shows backend behaviour/)).toBeInTheDocument();
+    expect(screen.getAllByText("Not tested live").length).toBeGreaterThan(0);
   });
 });

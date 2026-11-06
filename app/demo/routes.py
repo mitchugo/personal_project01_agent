@@ -25,7 +25,7 @@ from app import refund_repo
 from app.approvals import ApprovalBinding, ExecuteRequest, approve_refund, execute_refund
 from app.authz import Action, authorize
 from app.db import connect, connect_readonly
-from app.demo import evidence
+from app.demo import assessment, evidence
 from app.demo.gate import require_demo
 from app.demo.inspector import BUFFER
 from app.identity import Principal
@@ -148,6 +148,22 @@ def execute(refund_id: str, request: Request, body: EmptyBody | None = None,
 @router.get("/evidence")
 def evidence_index() -> dict:
     return {"specs": evidence.list_specs(), "evidence": evidence.list_evidence()}
+
+
+@router.get("/assessment")
+def assessment_overview() -> dict:
+    """Offline red-team results (Sessions 9-10), computed from allowlisted, sanitised trial records."""
+    return assessment.overview()
+
+
+@router.get("/assessment/trials")
+def assessment_trials(run_id: str = Query(min_length=3, max_length=40, pattern=r"^[a-z0-9-]+$")) -> dict:
+    """Sanitised trials of ONE known run. The run is chosen by ID from a fixed list, never by path."""
+    run = assessment.load_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return {k: run[k] for k in ("run_id", "session", "mode", "behaviour", "git_commit", "git_dirty",
+                                "dataset_version", "invalid_records", "trials")}
 
 
 @router.get("/evidence/file")

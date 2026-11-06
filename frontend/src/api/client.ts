@@ -100,4 +100,7 @@ export const api = {
   evidence: () => request<import("./types").EvidenceIndex>("GET", "/demo/evidence"),
   evidenceFile: (id: string) =>
     request<import("./types").EvidenceFile>("GET", `/demo/evidence/file?id=${encodeURIComponent(id)}`),
+  assessment: () => request<import("./types").AssessmentOverview>("GET", "/demo/assessment"),
+  assessmentTrials: (runId: string) =>
+    request<import("./types").RunTrials>("GET", `/demo/assessment/trials?run_id=${encodeURIComponent(runId)}`),
 };

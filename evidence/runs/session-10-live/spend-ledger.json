@@ -1,0 +1,564 @@
+{
+ "cap_usd": 0.95,
+ "spent_usd": 0.349024,
+ "calls": [
+  {
+   "cost_usd": 0.004386,
+   "trial": "A01-KB1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1928,
+   "output_tokens": 53,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.006926,
+   "trial": "A01-KB1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2358,
+   "output_tokens": 221,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004386,
+   "trial": "A01-KB1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1928,
+   "output_tokens": 53,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.006776,
+   "trial": "A01-KB1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2358,
+   "output_tokens": 206,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004386,
+   "trial": "A01-KB1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1928,
+   "output_tokens": 53,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.007186,
+   "trial": "A01-KB1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2358,
+   "output_tokens": 247,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004392,
+   "trial": "A01-KB2#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1931,
+   "output_tokens": 53,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00843,
+   "trial": "A01-KB2#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2430,
+   "output_tokens": 357,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004392,
+   "trial": "A01-KB2#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1931,
+   "output_tokens": 53,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00836,
+   "trial": "A01-KB2#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2430,
+   "output_tokens": 350,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004392,
+   "trial": "A01-KB2#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1931,
+   "output_tokens": 53,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00846,
+   "trial": "A01-KB2#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2430,
+   "output_tokens": 360,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00446,
+   "trial": "A04-ID1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1945,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005256,
+   "trial": "A04-ID1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2073,
+   "output_tokens": 111,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00446,
+   "trial": "A04-ID1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1945,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005086,
+   "trial": "A04-ID1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2073,
+   "output_tokens": 94,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00446,
+   "trial": "A04-ID1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1945,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005126,
+   "trial": "A04-ID1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2073,
+   "output_tokens": 98,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004564,
+   "trial": "A04-ID3#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1997,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005882,
+   "trial": "A04-ID3#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2126,
+   "output_tokens": 163,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005124,
+   "trial": "A04-ID3#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1997,
+   "output_tokens": 113,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.006114,
+   "trial": "A04-ID3#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2182,
+   "output_tokens": 175,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004564,
+   "trial": "A04-ID3#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1997,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.006052,
+   "trial": "A04-ID3#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2126,
+   "output_tokens": 180,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004414,
+   "trial": "A06-ST1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1922,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005708,
+   "trial": "A06-ST1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2184,
+   "output_tokens": 134,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004414,
+   "trial": "A06-ST1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1922,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005738,
+   "trial": "A06-ST1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2184,
+   "output_tokens": 137,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004414,
+   "trial": "A06-ST1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1922,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.005738,
+   "trial": "A06-ST1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2184,
+   "output_tokens": 137,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00445,
+   "trial": "A06-SS1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1940,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004894,
+   "trial": "A06-SS1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2187,
+   "output_tokens": 52,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004734,
+   "trial": "A06-SS1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1927,
+   "output_tokens": 88,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00445,
+   "trial": "A06-SS1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1940,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004894,
+   "trial": "A06-SS1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2187,
+   "output_tokens": 52,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004564,
+   "trial": "A06-SS1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1927,
+   "output_tokens": 71,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00445,
+   "trial": "A06-SS1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1940,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004894,
+   "trial": "A06-SS1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2187,
+   "output_tokens": 52,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004654,
+   "trial": "A06-SS1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1927,
+   "output_tokens": 80,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004986,
+   "trial": "A08-EX1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1948,
+   "output_tokens": 109,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.008666,
+   "trial": "A08-EX1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2733,
+   "output_tokens": 320,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.010252,
+   "trial": "A08-EX1#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 3186,
+   "output_tokens": 388,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004986,
+   "trial": "A08-EX1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1948,
+   "output_tokens": 109,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.008646,
+   "trial": "A08-EX1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2733,
+   "output_tokens": 318,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.010746,
+   "trial": "A08-EX1#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 3183,
+   "output_tokens": 438,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004986,
+   "trial": "A08-EX1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1948,
+   "output_tokens": 109,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.008436,
+   "trial": "A08-EX1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2733,
+   "output_tokens": 297,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.01095,
+   "trial": "A08-EX1#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 3165,
+   "output_tokens": 462,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00395,
+   "trial": "A08-EX2#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1975,
+   "output_tokens": 0,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00395,
+   "trial": "A08-EX2#2",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1975,
+   "output_tokens": 0,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00395,
+   "trial": "A08-EX2#3",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1975,
+   "output_tokens": 0,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00443,
+   "trial": "B01-LOOKUP#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1930,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004754,
+   "trial": "B01-LOOKUP#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2177,
+   "output_tokens": 40,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004448,
+   "trial": "B02-KB#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1929,
+   "output_tokens": 59,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.006276,
+   "trial": "B02-KB#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2378,
+   "output_tokens": 152,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.0055,
+   "trial": "B03-REFUND#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1950,
+   "output_tokens": 160,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00612,
+   "trial": "B03-REFUND#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2285,
+   "output_tokens": 155,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004878,
+   "trial": "B04-UPDATE#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1939,
+   "output_tokens": 100,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004728,
+   "trial": "B04-UPDATE#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2134,
+   "output_tokens": 46,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.004446,
+   "trial": "B05-DRAFT#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 1938,
+   "output_tokens": 57,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00666,
+   "trial": "B05-DRAFT#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2185,
+   "output_tokens": 229,
+   "cache_read": 0,
+   "cache_write": 0
+  },
+  {
+   "cost_usd": 0.00625,
+   "trial": "B05-DRAFT#1",
+   "model": "claude-sonnet-5-5",
+   "input_tokens": 2545,
+   "output_tokens": 116,
+   "cache_read": 0,
+   "cache_write": 0
+  }
+ ]
+}

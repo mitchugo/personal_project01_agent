@@ -548,3 +548,31 @@ flowchart LR
 
 The UI is a presentation layer. It adds **no** security control: rendering hygiene (`SafeMarkdown`, no images
 or links) only protects the browser that displays the text.
+
+## 16. Red-team harness (Session 9)
+
+The test-only package `attacks/` drives the real app in-process (`create_app()` + `TestClient`), one disposable,
+verified SQLite file per trial. It swaps only the model provider: a scripted mock by default, or a guarded live provider
+that needs explicit opt-in. The harness adds no route, control or dependency to the application, and is never imported by it.
+Full design: [red-team-harness.md](red-team-harness.md). Methodology: [attacks/METHODOLOGY.md](../attacks/METHODOLOGY.md).
+
+## 17. Assessment results in the UI (Session 10 closure)
+
+```
+evidence/runs/<allowlisted run>/trials.jsonl ──┐
+evidence/assessment-index.json (notes,findings)─┼─► app/demo/assessment.py ─► GET /demo/assessment
+attacks/datasets/attack_cases.v1.jsonl (cases) ─┘   validate · allowlist ·    GET /demo/assessment/trials?run_id=<known id>
+                                                    aggregate (counts, CI)    (behind the /demo gate)
+```
+
+| Rule | Where enforced |
+|---|---|
+| Same fail-closed gate as all `/demo/*` routes | router-wide `require_demo` |
+| Only runs listed in `RUNS` are readable; `run_id` is an ID, never a path | `assessment.load_run` |
+| Evidence is untrusted input: type, pattern and length checks, allowlisted output, malformed records skipped and counted | `sanitise_trial`, `_findings`, `_text` |
+| Counts and rates are computed from records; the index only supplies curated text | `overview`, `_spec_summary` |
+| Private transcripts and raw payloads are never read or returned | fixed file names (`trials.jsonl`, `run.json`); field allowlist |
+| No identity needed; the tenant-scoped inspector is untouched | offline aggregate data only |
+| UI renders evidence values as plain text | `Evidence.tsx` (no Markdown/HTML for evidence fields) |
+
+No authorisation, tool, approval or agent code changed.

@@ -45,16 +45,53 @@ not needed**. If you serve the UI from another loopback origin, set `DEMO_UI_ORI
 | Workspace | `POST /chat` | Sends nothing until you press Send. **Paid** when the agent is enabled. Chat history is in memory only and cleared when you switch identity. |
 | Security Inspector | `GET /demo/inspector` | Sanitised in-memory audit buffer for the selected user's **tenant only**, grouped by correlation ID. No prompts, arguments, customer details or credentials. |
 | Approvals | `GET /demo/refunds`, `POST /demo/refunds/{id}/approve | execute` | Calls `app.approvals` unchanged; the backend re-checks everything. **Reject is not implemented** in the backend, so the button is disabled. |
-| Attack Evidence | `GET /demo/evidence`, `GET /demo/evidence/file?id=` | A01–A08 shown as *Prepared — not executed* until evidence exists. Files are served only by listed ID. |
+| Attack Evidence | `GET /demo/assessment`, `GET /demo/assessment/trials?run_id=`, `GET /demo/evidence`, `GET /demo/evidence/file?id=` | Red-team results from Sessions 9–10 (see below). Files are served only by listed ID. |
+
+## Attack Evidence view (Session 10 closure)
+
+Offline, read-only results from the red-team harness. They are aggregate lab data, **not tenant activity**: runtime
+audit events stay in the tenant-scoped Security Inspector. Opening the page makes no model or chat calls.
+
+| Section | Shows | Source |
+|---|---|---|
+| Totals | Live attack trials, objectives achieved, bypasses, benign completion, model calls, estimated cost | `totals` |
+| Attack overview | A01–A08: category, status, live/mock trials, model, objective successes `k/n`, backend denials, observed impact, evidence runs | `specs[]` |
+| Detail | Objective, entry point, threats, trial counts, configured vs actual model, model behaviour / backend / impact notes, 95% CI, evidence links, limitations | `specs[]` + the spec Markdown |
+| Trial explorer | Trials of one run, grouped by case: trial and correlation IDs, timestamp, proposed tools, backend decisions, tool outcomes, impact class, tokens and cost | `/demo/assessment/trials` |
+| Findings | Severity, mock vs live reproduction, "exploited live", affected specs, remediation, retest | `findings[]` |
+| Before / after | Empty until real Phase C retest evidence exists | `comparisons[]` (empty) |
+
+**Status labels** are computed from trial records, never typed by hand:
+
+| Label | Meaning |
+|---|---|
+| *Prepared — not executed* | No trials |
+| *Tested with mock provider* | Mock trials only |
+| *Tested live* | Every dataset case for the spec ran live, and every live trial is conclusive with complete evidence |
+| *Partially tested* | Some live trials, but not every case, or some inconclusive |
+| *Inconclusive* | Live trials exist but none are conclusive |
+
+**Evidence schema** (`assessment-view/v1`):
+- the server reads only the run directories in `app/demo/assessment.py:RUNS` and `evidence/assessment-index.json`
+  (curated notes and findings, `assessment-index/v1`);
+- every trial field is validated and allowlisted;
+- private transcripts are never read.
+
+**Adding a run** (Session 11, Phase C):
+1. Write harness output to `evidence/runs/<name>/`.
+2. Add one entry to `RUNS`.
+3. Record the before/after pairing in `comparisons`.
 
 ## Tests
 
 ```powershell
 npm run typecheck
-npm test                                   # Vitest + Testing Library (jsdom): 28 tests
+npm test                                   # Vitest + Testing Library (jsdom): 32 tests
 $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD="1"
 npm run test:e2e                           # Playwright with installed Microsoft Edge: 11 checks
 ```
+
+OneDrive note: if Playwright reports "No tests found", see `HANDOFF.md` §5 (synced files appear to Node as symlinks).
 
 The Playwright run starts its own backend (`e2e/backend.py`) on 127.0.0.1:8010 with a temporary seeded
 database, **no API key and the agent off**, so it can never make a paid call. Screenshots go to

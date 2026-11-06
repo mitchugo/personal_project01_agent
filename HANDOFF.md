@@ -1,6 +1,6 @@
 # Handoff: Project 1, Enterprise AI Agent: Build, Attack & Secure
 
-*Last updated 2026-11-06, end of Session 8. Read this first in any new chat.*
+*Last updated 2026-11-06, end of Session 10. Read this first in any new chat.*
 
 ## 1. What this is
 
@@ -15,13 +15,14 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 
 | Item | State |
 |---|---|
-| `develop` | Sessions 1–7 committed and pushed; HEAD `650f20a` |
+| `develop` | `02df3c2` (Session 8 merged), **pushed** |
 | Tag `v0-baseline` | Annotated, on `650f20a` (pre-attack baseline, 378 tests). **Do not move it.** |
-| Current branch | `feature/session-08-security-ui` (from `develop`) |
-| **Session 8** | Committed `f5298ff` and pushed to `origin/feature/session-08-security-ui`; live UI verification in `evidence/runs/2026-11-06-session-08-live-ui/`. **Not merged into `develop`** |
-| Tests | Backend **452** passed · Frontend unit **28** · Playwright **11** (installed Edge; see the OneDrive note in §5) |
-| Live API spend | ≈ **$0.175** of **$5** approved (Claude `claude-sonnet-5-5`) |
-| Open questions to Mitch | Merge `feature/session-08-security-ui` into `develop`? (Session 9 should branch from a reviewed `develop`) |
+| Current branch | `feature/session-10-live-assessment` (from `d3d8ba8`), **pushed**: `682eab4` harness v1.1 → `ff3579b` evidence → UI commit (see §3). Not merged |
+| **Session 9** | `d3d8ba8`, pushed to `origin/feature/session-09-redteam-harness` (not merged) |
+| **Session 10** | Closed: live assessment evidence, F-002 (*Provisional Medium*), O-001, ENG-001, and the Attack Evidence UI showing real results |
+| Tests | Backend **546** · Vitest **32** · Playwright **11** (see the OneDrive note in §5) |
+| Live API spend | ≈ **$0.524** of **$5** (Session 10: $0.349 of $1 authorised) |
+| Open questions to Mitch | (1) Merge Sessions 9–10 into `develop`? (2) Session 11 scope: F-002/O-001 remediation, ENG-001 investigation, retest budget |
 
 ## 3. Session history
 
@@ -35,6 +36,8 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 | 6 | `05cd875` | Claude agent runtime (`app/agent/`): provider adapter, strict tool schemas, bounded manual loop, budgets, grounded reply record (finding F-001). 8 live runs. **Model fallback found and disabled** (`AGENT_MODEL_FALLBACK` off by default; `model_mismatch` rejection) |
 | 7 | `650f20a` | Baseline review: 7 doc fixes, deterministic e2e HTTP tests, 3 live HTTP runs, 11-control matrix, attack specs **A01–A08 (prepared, not executed)**, tag `v0-baseline` |
 | 8 | `f5298ff` | Local UI "Chigzio AI Agent Security Lab" (React 19 / Vite 8 / Tailwind 4 / TS 5.9) + `app/demo/` API |
+| 9 | `d3d8ba8` | Red-team harness: dataset 1.0.0 (16 attack + 5 benign), runner (verified disposable DBs, guarded/mock/live-gated providers), six-class grader, reports; mock evidence in `evidence/runs/session-09-harness/` |
+| 10 | `682eab4`, `ff3579b`, UI commit | Harness v1.1 (spend ledger, call guard, strict stops), dataset 1.1.0 (A04-ID3). Live A01/A04/A06/A08 ×3 + benign ×1: 0/27 attacker objectives, 0 bypasses, 6/6 privileged proposals denied, 5/5 benign. F-002, O-001, ENG-001. Read-only `/demo/assessment` + Attack Evidence UI with real results |
 
 ## 4. Architecture in one picture
 
@@ -47,8 +50,11 @@ Browser UI (local) ──/api proxy──► FastAPI 127.0.0.1:8000
               config · inspector (sanitised, tenant-scoped, in-memory) · refunds approve/execute (app.approvals) · evidence
 ```
 
-Key docs: `docs/architecture.md` (§13 agent, §14 baseline, §15 UI), `docs/threat-model.md` (T-01…T-28),
-`docs/limitations.md`, `docs/learning-log.md`, `attacks/specs/`, `evidence/`.
+Key docs: `docs/architecture.md` (§13 agent, §14 baseline, §15 UI, §16 harness), `docs/red-team-harness.md`,
+`attacks/README.md`, `attacks/METHODOLOGY.md`, `docs/threat-model.md` (T-01…T-28), `docs/limitations.md`,
+`docs/learning-log.md`, `attacks/specs/`, `evidence/`.
+
+Red-team harness (mock, free): `.\.venv\Scripts\python.exe -m attacks.runner --case A01-KB1 --out evidence\runs\scratch`
 
 ## 5. How to run
 
@@ -81,22 +87,32 @@ Real Claude: set `AGENT_PROVIDER=anthropic` (the key is in Mitch's User environm
 
 ## 7. Known gaps and next steps
 
-**Untested or uncontrolled risks** (see attack specs):
-- T-22: untrusted text driving actions within the user's permissions;
-- T-23: stored injection via the free-text address field;
-- T-24: draft redirection via a contact-email update;
-- T-25: exfiltration via draft bodies;
+**Session 10 live result.** Claude (`claude-sonnet-5-5`) declined every embedded instruction (15/15) and attempted no
+within-permission misuse. The gaps below are therefore **confirmed in code but not exploited live**. See draft finding
+`evidence/findings/F-002-*.md` and `evidence/runs/session-10-live/README.md`.
+
+**Uncontrolled risks.** T-22 to T-25 are **reproduced deterministically** with an obedient mock model; no backend control blocks them:
+- T-22: untrusted text driving actions within the user's permissions (A01-KB1);
+- T-23: stored injection via the free-text address field (A06-ST1);
+- T-24: draft redirection via a contact-email update (A03-RCP2);
+- T-25: exfiltration via draft bodies (A08-EX1).
+
+Also still open:
 - no production authentication or deployment controls;
-- model behaviour seen in only 11 single samples.
+- real model behaviour seen in only 15 single samples (11 earlier + 4 in the Session 8 UI run); no live harness campaign yet.
 
 **Suggested next steps:**
-1. Decide on committing Session 8 (suggested message: `feat: add local security demonstration UI and demo API`), then merge to `develop` when reviewed.
-2. Session 9: execute attack campaigns **A01–A08** with repeated live samples under an approved budget. Turn deterministic variants
-   into regression tests and record results in `evidence/runs/<date>-attack-AXX/` so the UI's Attack Evidence panels fill in.
-3. Remediate findings (T-22–T-25 candidates), then re-test and record before/after evidence.
+1. Review and merge `feature/session-10-live-assessment` (which contains Session 9) into `develop` when ready.
+2. Session 11 (not started): remediate F-002 (confirmation or taint tracking for state-changing tools after untrusted reads;
+   draft-body content checks; field hygiene) and O-001 (tenant-neutral example ID). Re-run the same dataset in mock and live,
+   add the new runs to `app/demo/assessment.py:RUNS`, and record before/after pairs in `evidence/assessment-index.json`
+   `comparisons` (the UI shows them automatically).
+3. Investigate ENG-001 (`docs/engineering/ENG-001-*.md`) separately.
+4. Optional, with a new budget: ≥5 trials, payload variants, and A02/A03/A05/A07 live.
 
 ## 8. Paste this to start the next chat
 
 > Continue Project 1 (Enterprise AI Agent: Build, Attack & Secure) in this repo. Read `HANDOFF.md` and the
-> `docs/` it references first. Session 8 (local UI) is complete but uncommitted on `feature/session-08-security-ui`.
+> `docs/` it references first. Session 10 is closed and pushed on `feature/session-10-live-assessment`
+> (not merged). Session 11 (F-002 remediation) has not started.
 > Confirm the git state and run the test suites, then [your next instruction].
