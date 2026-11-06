@@ -17,12 +17,12 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 |---|---|
 | `develop` | `02df3c2` (Session 8 merged), **pushed** |
 | Tag `v0-baseline` | Annotated, on `650f20a` (pre-attack baseline, 378 tests). **Do not move it.** |
-| Current branch | `feature/session-10-live-assessment` (from `d3d8ba8`), with harness v1.1 committed as `682eab4` (**not pushed**) |
+| Current branch | `feature/session-10-live-assessment` (from `d3d8ba8`), **pushed**: `682eab4` harness v1.1 → `ff3579b` evidence → UI commit (see §3). Not merged |
 | **Session 9** | `d3d8ba8`, pushed to `origin/feature/session-09-redteam-harness` (not merged) |
-| **Session 10** | Live assessment done. Evidence, finding F-002 and docs are **UNCOMMITTED** on the Session 10 branch |
-| Tests | Backend **522** passed · Frontend unit **28** · Playwright **11** (frontend unchanged since Session 8; see the OneDrive note in §5) |
+| **Session 10** | Closed: live assessment evidence, F-002 (*Provisional Medium*), O-001, ENG-001, and the Attack Evidence UI showing real results |
+| Tests | Backend **546** · Vitest **32** · Playwright **11** (see the OneDrive note in §5) |
 | Live API spend | ≈ **$0.524** of **$5** (Session 10: $0.349 of $1 authorised) |
-| Open questions to Mitch | (1) Commit Session 10 evidence/docs? (2) Push the Session 10 branch? (3) Session 11 remediation scope (F-002)? |
+| Open questions to Mitch | (1) Merge Sessions 9–10 into `develop`? (2) Session 11 scope: F-002/O-001 remediation, ENG-001 investigation, retest budget |
 
 ## 3. Session history
 
@@ -36,8 +36,8 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 | 6 | `05cd875` | Claude agent runtime (`app/agent/`): provider adapter, strict tool schemas, bounded manual loop, budgets, grounded reply record (finding F-001). 8 live runs. **Model fallback found and disabled** (`AGENT_MODEL_FALLBACK` off by default; `model_mismatch` rejection) |
 | 7 | `650f20a` | Baseline review: 7 doc fixes, deterministic e2e HTTP tests, 3 live HTTP runs, 11-control matrix, attack specs **A01–A08 (prepared, not executed)**, tag `v0-baseline` |
 | 8 | `f5298ff` | Local UI "Chigzio AI Agent Security Lab" (React 19 / Vite 8 / Tailwind 4 / TS 5.9) + `app/demo/` API |
-| 10 | `682eab4` + *uncommitted* | Harness v1.1 (spend ledger, call guard, strict identity/evidence stops), dataset 1.1.0 (A04-ID3). Live A01/A04/A06/A08 ×3 + benign ×1: 0/27 attacker objectives, 0 bypasses, 6/6 privileged proposals denied, 5/5 benign. Draft F-002 |
 | 9 | `d3d8ba8` | Red-team harness: dataset 1.0.0 (16 attack + 5 benign), runner (verified disposable DBs, guarded/mock/live-gated providers), six-class grader, reports; mock evidence in `evidence/runs/session-09-harness/` |
+| 10 | `682eab4`, `ff3579b`, UI commit | Harness v1.1 (spend ledger, call guard, strict stops), dataset 1.1.0 (A04-ID3). Live A01/A04/A06/A08 ×3 + benign ×1: 0/27 attacker objectives, 0 bypasses, 6/6 privileged proposals denied, 5/5 benign. F-002, O-001, ENG-001. Read-only `/demo/assessment` + Attack Evidence UI with real results |
 
 ## 4. Architecture in one picture
 
@@ -102,15 +102,17 @@ Also still open:
 - real model behaviour seen in only 15 single samples (11 earlier + 4 in the Session 8 UI run); no live harness campaign yet.
 
 **Suggested next steps:**
-1. Review and commit the Session 10 evidence and docs (suggested: `docs: add Session 10 live assessment evidence and draft finding F-002`).
-2. Session 11: remediate F-002 (confirmation or taint tracking for state-changing tools after untrusted reads; draft-body
-   content checks; field hygiene). Then re-run the same dataset in mock and live for before/after evidence.
-3. Optional, with a new budget: ≥5 trials, payload variants, and A02/A03/A05/A07 live. Also decide how the Attack Evidence UI
-   should pick up `session-10-live` (it currently only recognises `*attack-aXX*` folders).
+1. Review and merge `feature/session-10-live-assessment` (which contains Session 9) into `develop` when ready.
+2. Session 11 (not started): remediate F-002 (confirmation or taint tracking for state-changing tools after untrusted reads;
+   draft-body content checks; field hygiene) and O-001 (tenant-neutral example ID). Re-run the same dataset in mock and live,
+   add the new runs to `app/demo/assessment.py:RUNS`, and record before/after pairs in `evidence/assessment-index.json`
+   `comparisons` (the UI shows them automatically).
+3. Investigate ENG-001 (`docs/engineering/ENG-001-*.md`) separately.
+4. Optional, with a new budget: ≥5 trials, payload variants, and A02/A03/A05/A07 live.
 
 ## 8. Paste this to start the next chat
 
 > Continue Project 1 (Enterprise AI Agent: Build, Attack & Secure) in this repo. Read `HANDOFF.md` and the
-> `docs/` it references first. Session 10 (live assessment) is complete on `feature/session-10-live-assessment`.
-> Harness v1.1 is committed (`682eab4`, not pushed); the Session 10 evidence and docs are uncommitted.
+> `docs/` it references first. Session 10 is closed and pushed on `feature/session-10-live-assessment`
+> (not merged). Session 11 (F-002 remediation) has not started.
 > Confirm the git state and run the test suites, then [your next instruction].

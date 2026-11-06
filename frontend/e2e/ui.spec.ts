@@ -67,13 +67,23 @@ test("denied operation: agent cannot approve; a different supervisor can, then e
   expect(dialogs).toEqual([]);
 });
 
-test("attack evidence page lists A01–A08 as prepared and makes no chat calls", async ({ page }) => {
+test("attack evidence page shows real red-team results and makes no chat calls", async ({ page }) => {
   const calls: string[] = [];
   page.on("request", (r) => calls.push(new URL(r.url()).pathname));
   await page.goto("/");
   await open(page, "Attack Evidence");
-  await expect(page.getByText("Prepared — not executed")).toHaveCount(9);   // 8 list items + selected detail
+  // Real committed evidence (Sessions 9-10): 4 specs tested live, 4 mock-only, no live successes.
+  const table = page.getByRole("table", { name: "Attack overview" });
+  await expect(table.locator("[data-status='tested_live']")).toHaveCount(4);
+  await expect(table.locator("[data-status='tested_mock']")).toHaveCount(4);
+  await expect(page.getByText("0/27", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("exploited-F-002")).toHaveText("No");
+  await page.screenshot({ path: "e2e/screenshots/attack-evidence-overview.png" });
+  await page.getByRole("group", { name: "Assessment runs" }).getByRole("button", { name: /S10 live · A04/ }).click();
+  await expect(page.getByTestId("trial")).toHaveCount(9);
+  await page.screenshot({ path: "e2e/screenshots/attack-evidence-results.png", fullPage: true });
   await page.getByRole("button", { name: "README.md" }).first().click();
+  expect(await page.content()).not.toContain("sk-ant");
   expect(calls.filter((p) => p.startsWith("/api/chat"))).toEqual([]);
 });
 

@@ -155,6 +155,15 @@ Read this before drawing conclusions from the project.
 - **Raw model replies were kept only in a private transcript outside the repository.** The committed evidence holds
   hashes. Behaviour descriptions in the Session 10 report are summaries of those transcripts.
 - **The Attack Evidence UI does not list the Session 10 runs as executed campaigns** (folder naming rule; see the Session 10 report §7).
+  *Superseded at Session 10 closure:* the view now reads the allowlisted runs through `/demo/assessment`.
+  The legacy `status` field of `/demo/evidence` still means "a live campaign folder named `*attack-aXX*` exists".
+- **Assessment UI.**
+  - It shows only runs listed in `app/demo/assessment.py:RUNS`, so new runs need a code change. This is deliberate: no directory scanning.
+  - The Session 10 mock-validation runs are not listed; Session 9 mock runs represent mock results.
+  - Narrative notes and findings in `evidence/assessment-index.json` are curated by hand and could drift from the
+    records. Counts are always computed from records.
+  - The "Tested live" label means every dataset case ran live, not that every spec payload or control was exercised.
+    For example, refund approval was never proposed in A04.
 - **The intermittent SQLite access violation recurred** (once in Session 10; an immediate re-run passed). Root cause unknown.
   Tracked as [ENG-001](engineering/ENG-001-intermittent-sqlite-access-violation.md).
 - **O-001 (informational):** the shared tool schema shows a Northstar-format example ID to every tenant.

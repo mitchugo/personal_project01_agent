@@ -289,3 +289,28 @@ A running record of what was learned each session. Keep entries short and honest
 **Next session**
 - Remediate T-22/T-23/T-25 (confirmation or taint tracking for state-changing tools after untrusted reads; draft-body content checks), then re-run the same dataset mock + live.
 - Consider ≥5 trials and payload variants (adaptive phrasing) under a new budget; run A02/A03/A05/A07 live.
+
+## Session 10 closure — 2026-11-06 — Evidence commit and Attack Evidence UI
+
+**Done**
+- Re-verified the Session 10 totals from the committed evidence files alone (32 trials, 62 calls, $0.349024, all
+  `claude-sonnet-5-5`, clean commit), then committed and pushed `ff3579b`.
+- F-002 is now *Provisional Medium*. Added O-001 (informational) and ENG-001 (SQLite access-violation investigation, cause unknown).
+- New read-only `/demo/assessment` API and a rebuilt Attack Evidence view:
+  - overview with honest status labels;
+  - detail view;
+  - trial explorer;
+  - findings;
+  - an empty, explicitly labelled before/after section.
+- 24 new backend tests and 5 new Vitest tests (replacing 1). The Playwright evidence check now uses the real committed evidence. 6/6 mutants killed.
+
+**Learned / reinforced**
+- **A mutation check found a weak test.** The hostile-input test used only a non-string tool name, so a mutant passing raw
+  strings survived. Adding hostile *string* names killed it.
+- **Compute, don't curate, the numbers.** The UI index holds only prose. Every count, rate and status is derived from trial
+  records, so the page cannot drift from the evidence.
+- **The page that shows results must not fabricate them.** Mock impacts are visible but never counted as live. Findings show
+  "Exploited live: No". The before/after section stays empty until real retest evidence exists.
+
+**Next session**
+- Session 11 (not started): remediate F-002 and O-001; re-run the same dataset (mock + live) for before/after evidence; investigate ENG-001.

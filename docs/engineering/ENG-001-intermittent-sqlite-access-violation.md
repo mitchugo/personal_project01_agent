@@ -25,6 +25,10 @@
   - tests ran via `Start-Process` with stdout/stderr redirected.
 - Both occurrences happened during schema creation for a fresh temporary database.
 - Frequency: 2 known occurrences in total. In the 8 full-suite runs during Sessions 8–10, 1 crashed. Earlier runs weren't counted.
+- **Third occurrence (Session 10 closure, same day), different stack.** It happened early in the run (about 11 characters of progress output).
+  The only frame faulthandler printed was `threading.py, line 302 in wait`, followed by `File ???, line 0`. There was **no** SQLite frame.
+  So "always during schema creation" is not established. The title is kept for traceability. An immediate re-run passed (546/546).
+  Running total: 3 known occurrences; 2 crashes in the 10 full-suite runs counted in Sessions 8–10.
 
 ## Not yet known
 
