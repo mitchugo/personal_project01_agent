@@ -67,7 +67,8 @@ MUTABLE_TABLES = ("customers", "email_drafts", "refund_requests", "refund_ledger
 @pytest.fixture(autouse=True)
 def no_live_model(monkeypatch):
     """Tests never reach a real model: no credentials, agent runtime off unless a test injects a fake."""
-    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "AGENT_PROVIDER", "AGENT_MODEL", "AGENT_MODEL_FALLBACK"):
+    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "AGENT_PROVIDER", "AGENT_MODEL", "AGENT_MODEL_FALLBACK",
+                "DEMO_UI", "DEMO_UI_ORIGIN"):
         monkeypatch.delenv(var, raising=False)
 
 

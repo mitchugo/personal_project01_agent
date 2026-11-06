@@ -2,10 +2,12 @@
 
 Routes:
     GET  /health      liveness, no data
-    POST /chat        identity-dependent; agent runtime NOT connected (fixed reply)
+    POST /chat        identity-dependent; Claude agent when AGENT_PROVIDER=anthropic, else a fixed reply
     GET  /audit-demo  fixed synthetic audit events (never the live log)
+    /demo/*           LOCAL-ONLY Security Lab UI API (app/demo); 404 unless DEMO_UI=local,
+                      APP_ENV=local and IDENTITY_MODE=local-fixture
 
-There is no LLM, tool gateway or customer CRUD. See docs/limitations.md.
+See docs/architecture.md and docs/limitations.md.
 """
 
 import os
@@ -13,12 +15,16 @@ from contextlib import closing
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.agent.factory import get_agent_runtime
 from app.agent.runtime import AgentRuntime
 from app.audit import DEMO_EVENTS, emit
 from app.db import connect
+from app.demo.gate import allowed_cors_origin, demo_enabled
+from app.demo.inspector import install as install_inspector_buffer
+from app.demo.routes import router as demo_router
 from app.errors import ErrorResponse, http_exception_handler, validation_exception_handler
 from app.identity import Principal
 from app.identity.http_dev import get_db_path, get_dev_principal
@@ -111,6 +117,16 @@ def create_app() -> FastAPI:
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.include_router(router)
+    app.include_router(demo_router)  # every route fails closed (404) unless the local demo is enabled
+    if demo_enabled():
+        install_inspector_buffer()
+    origin = allowed_cors_origin()
+    if origin:  # off by default; the Vite dev proxy keeps the UI same-origin
+        app.add_middleware(
+            CORSMiddleware, allow_origins=[origin], allow_credentials=False,
+            allow_methods=["GET", "POST"], allow_headers=["Content-Type", "X-Dev-User-Id"],
+            expose_headers=["X-Correlation-ID"],
+        )
     return app
 
 

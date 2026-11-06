@@ -105,3 +105,20 @@ Read this before drawing conclusions from the project.
 - **Uncontrolled within-permission misuse** (T-22), **stored injection** (T-23), **draft redirection via contact
   update** (T-24) and **content exfiltration via drafts/fields** (T-25) are documented but untested. See attack specs A01, A03, A06 and A08.
 - The live S7 runs used the HTTP path with a real server; the 8 S6 runs called the runtime directly.
+
+## Session 8: local demonstration UI
+
+- **The UI is local-only and must never be deployed.** It relies on the development identity selector: whoever
+  opens the page can pick any fixture user, including a supervisor, and approve refunds. That is a demonstration of
+  backend checks, **not** an access-control model.
+- **The `/demo` API is diagnostics for a lab.** It is gated by environment values only (no authentication), returns 404
+  when not enabled, and binds to 127.0.0.1 in the documented setup. Nothing stops an operator from mis-binding it to
+  a network interface.
+- **The inspector buffer is per server process and in memory.** It's lost on restart, capped at 500 events, and not an audit store.
+- **No reject transition** exists in the backend, so the UI shows "Reject (not implemented)".
+- **Rendering hygiene is presentation-only.** It protects the viewer's browser, not the data, the backend or other clients.
+- **Dev server only.** No production build, hosting configuration or HTTP security headers beyond a CSP meta tag are provided.
+- React StrictMode double-invokes effects in development, so read-only GETs (config, refunds, evidence) are sent twice on load.
+  They're harmless, and chat is only sent on click.
+- Visual and accessibility checks are automated (axe WCAG 2.1 A/AA serious/critical, 390px no horizontal scroll) but no
+  manual screen-reader test has been done.

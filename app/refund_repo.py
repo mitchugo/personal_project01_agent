@@ -86,6 +86,17 @@ def insert_ledger_entry(conn: sqlite3.Connection, operator: Principal, refund: d
     return entry_id
 
 
+def list_refunds(conn: sqlite3.Connection, principal: Principal, limit: int = 50) -> list[dict]:
+    """Read-only, tenant-scoped listing for the local approval queue UI."""
+    rows = conn.execute(
+        "SELECT refund_id, customer_id, requested_by, amount_pence, currency, reason, status, approved_by, "
+        "created_at, approved_at, executed_at FROM refund_requests WHERE tenant_id = ? "
+        "ORDER BY created_at DESC LIMIT ?",
+        (principal.tenant_id, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def ledger_entry_for(conn: sqlite3.Connection, principal: Principal, refund_id: str) -> str | None:
     row = conn.execute(
         "SELECT entry_id FROM refund_ledger WHERE refund_id = ? AND tenant_id = ?",
