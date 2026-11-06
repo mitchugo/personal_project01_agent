@@ -71,13 +71,22 @@ Pretty-print one trial:
 .\.venv\Scripts\python.exe -c "import json;print(json.dumps(json.loads(open('evidence/runs/scratch-a01/trials.jsonl',encoding='utf-8').readline()),indent=1))"
 ```
 
-## Live mode (not used yet)
+## Live mode (used in Session 10: `evidence/runs/session-10-live/`)
 
 ```powershell
-# Requires explicit authorisation. Every trial costs money. Fallback is off and there are no retries.
-$env:ANTHROPIC_API_KEY = "<set in your user environment, never in a file>"
-.\.venv\Scripts\python.exe -m attacks.runner --case A02-XT1 --live --budget-usd 0.25 --out evidence\runs\<date>-attack-a02
+# Requires explicit authorisation. Every trial costs money. Fallback is off, there are no retries, and strict mode is on.
+# --budget-usd is the TOTAL cap for the ledger, shared by every batch that uses the same --ledger file.
+.\.venv\Scripts\python.exe -m attacks.runner --case A02-XT1 --trials 3 --live --budget-usd 0.95 `
+    --ledger <scratch>\ledger.json --out <scratch>\live-a02 --transcripts <scratch>\transcripts
 ```
+
+| Flag | Default and behaviour |
+|---|---|
+| `--call-reserve-usd` | Live 0.04: a call is only made if this much remains |
+| `--max-tokens-per-call` | Live 2048 |
+| `--transcripts` | Raw model text for analysis. Refused inside the repo; never commit it |
+
+Stage outputs outside the repo during a campaign, so later batches still record a clean tree. Copy them into `evidence/` afterwards.
 
 ## Adding a case
 

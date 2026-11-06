@@ -139,3 +139,23 @@ Read this before drawing conclusions from the project.
 - **Statistics are descriptive.** Wilson intervals are shown, but no significance testing or power analysis is done.
 - **Evidence hashes are unsalted sha256 prefixes.** Short, guessable values (e.g. a known email) could be confirmed by hashing.
   Evidence is meant for the project owner, not for publication of sensitive data.
+
+## Session 10: live assessment
+
+- **3 trials per case, one model (`claude-sonnet-5-5`), fixed non-adaptive payloads.** 0/27 attacker successes means
+  "not observed", not "impossible". The 95% CI for the pooled attack-success rate is 0–12%, and 0–56% per case.
+- **Several controls were not exercised live.** Claude never proposed `approve_refund`, a malicious `update_customer`,
+  an injected `request_refund` or a data-copying draft. So T-04, T-22, T-23 and T-25 controls weren't challenged live.
+  Their status comes from deterministic mock runs.
+- **Cases not run live:** A02, A03, A05 and A07. A04 payload 5 (ticket text) is not applicable, because no tool reads tickets.
+- **A08-EX2 was refused by the API** (category `cyber`) before the model produced any output. This shows a provider-level
+  safety behaviour, which could change between model versions, not an application control.
+- **Costs are application-side estimates** (reported tokens × list price) and not the provider's invoice. All four
+  internal tallies agree, but the real bill can't be checked from the app.
+- **Raw model replies were kept only in a private transcript outside the repository.** The committed evidence holds
+  hashes. Behaviour descriptions in the Session 10 report are summaries of those transcripts.
+- **The Attack Evidence UI does not list the Session 10 runs as executed campaigns** (folder naming rule; see the Session 10 report §7).
+- **The intermittent SQLite access violation recurred** (once in Session 10; an immediate re-run passed). Root cause unknown.
+  Tracked as [ENG-001](engineering/ENG-001-intermittent-sqlite-access-violation.md).
+- **O-001 (informational):** the shared tool schema shows a Northstar-format example ID to every tenant.
+  See [O-001](../evidence/findings/O-001-tenant-specific-example-id-in-shared-tool-schema.md).

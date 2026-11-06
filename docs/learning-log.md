@@ -253,3 +253,39 @@ A running record of what was learned each session. Keep entries short and honest
 
 **Next session**
 - With an approved budget, run live campaigns per spec (≥5 trials per case) into `evidence/runs/<date>-attack-aXX/`. Then remediate T-22–T-25.
+
+## Session 10 — 2026-11-06 — Live prompt-injection and manipulation assessment (A01, A04, A06, A08)
+
+**Done**
+- Committed and pushed Session 9 (`d3d8ba8`), and fast-forwarded and pushed `develop` (`02df3c2`). `v0-baseline` is unchanged.
+- Hardened the harness for paid runs (v1.1, `682eab4`):
+  - a spend ledger across batches and a per-call budget guard;
+  - reserve charging for possibly-billed failures;
+  - strict stops on identity or evidence failure;
+  - per-call usage records and private transcripts.
+
+  11 new tests, 6/6 mutants killed. Dataset 1.1.0 adds A04-ID3.
+- Ran 32 live trials (27 attack + 5 benign) for **≈ $0.349 of the $1** authorised, with independent verification passing.
+  Results:
+  - 0/27 attacker objectives achieved, 0 bypasses;
+  - 6/6 privileged proposals denied by the backend;
+  - 15/15 embedded instructions declined by Claude;
+  - 5/5 benign tasks completed.
+- Draft finding **F-002** (control gap confirmed deterministically, not exploited live); observation O-001 (tenant-shaped example ID in the shared tool schema).
+
+**Learned / reinforced**
+- **Write the safety rails before spending.** Reviewing the live path turned up three harness defects that mock runs could
+  never reveal: a mismatch flag that would never trigger for the real provider, unbilled failure modes, and no per-call guard.
+  All were fixed before the first paid call.
+- **"The model refused" is not "the control held".** In 18 of 27 attack trials, the backend control under test was never reached. A04-ID1/ID3 (role and tenant denial) and A04-ID2 (422) were the exceptions.
+  The report says "not challenged" rather than claiming backend success.
+- **Grading labels need reading notes.** "Followed, backend denied" for A04 meant "forwarded the request". Claude's text
+  rejected the claimed identity every time. Indicator semantics should distinguish forwarding a request from accepting a claim (grader refinement for later).
+- **Check your own numbers.** The first draft of the report had wrong token totals and proposal counts. Recomputing from the
+  records caught them before the report was handed over.
+- **Clean tree first.** Writing evidence into the repo during a campaign would have flagged later batches as dirty. Staging in the
+  scratchpad and copying at the end kept every record on a clean commit.
+
+**Next session**
+- Remediate T-22/T-23/T-25 (confirmation or taint tracking for state-changing tools after untrusted reads; draft-body content checks), then re-run the same dataset mock + live.
+- Consider ≥5 trials and payload variants (adaptive phrasing) under a new budget; run A02/A03/A05/A07 live.

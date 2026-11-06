@@ -99,3 +99,4 @@ Each line of `trials.jsonl` holds:
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 2026-11-06 | Initial methodology, dataset 1.0.0, schemas v1 |
+| 1.1 | 2026-11-06 | Live-run safeguards: spend ledger shared across batches, per-call budget guard (`--call-reserve-usd`), reserve charging for possibly-billed provider errors, strict stop on model mismatch or missing evidence, per-call usage in records (`harness-trial/v1.1`), `budget_stopped` status, private transcripts outside the repo. Dataset 1.1.0 adds A04-ID3. Reporting rule: a control is "not challenged" when the model never proposed the relevant action |
