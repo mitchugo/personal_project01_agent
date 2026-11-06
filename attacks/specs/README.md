@@ -1,5 +1,9 @@
 # Attack specifications A01–A08 (prepared at baseline `v0-baseline`, NOT yet executed)
 
+> **Session 9:** these specs are now encoded as machine-readable cases in `../datasets/` (v1.0.0) and run by the
+> harness in `../runner/`. They have been run **in mock mode only** (`evidence/runs/session-09-harness/`). Live
+> campaigns are still pending, so the "NOT yet executed" status above remains true for real model behaviour.
+
 These specifications define the next phase's adversarial campaigns. Each one separates:
 
 - **Deterministic backend enforcement**: must hold 100% of the time, whatever the model does. A single violation is a finding.

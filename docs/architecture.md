@@ -548,3 +548,10 @@ flowchart LR
 
 The UI is a presentation layer. It adds **no** security control: rendering hygiene (`SafeMarkdown`, no images
 or links) only protects the browser that displays the text.
+
+## 16. Red-team harness (Session 9)
+
+The test-only package `attacks/` drives the real app in-process (`create_app()` + `TestClient`), one disposable,
+verified SQLite file per trial. It swaps only the model provider: a scripted mock by default, or a guarded live provider
+that needs explicit opt-in. The harness adds no route, control or dependency to the application, and is never imported by it.
+Full design: [red-team-harness.md](red-team-harness.md). Methodology: [attacks/METHODOLOGY.md](../attacks/METHODOLOGY.md).

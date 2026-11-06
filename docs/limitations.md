@@ -122,3 +122,20 @@ Read this before drawing conclusions from the project.
   They're harmless, and chat is only sent on click.
 - Visual and accessibility checks are automated (axe WCAG 2.1 A/AA serious/critical, 390px no horizontal scroll) but no
   manual screen-reader test has been done.
+
+## Session 9: red-team harness
+
+- **Mock results are not model behaviour.** The scripted `obedient` and `resistant` models check the backend and the harness.
+  Claude's injection resistance is still unmeasured. No live campaign has run.
+- **Conditions are only as good as the dataset.** A success or bypass condition that isn't written down can't be detected.
+  For example, other-tenant data in a reply is checked via model input, not by scanning reply text.
+- **Model-input capture is in-process.** In live mode it records what the runtime sends to the provider SDK,
+  not the bytes on the wire.
+- **Timeouts are checked between model calls.** A single slow call is bounded by the SDK timeout, not interrupted.
+  Cost is checked after each call, so a trial can overshoot by one call.
+- **Trials run sequentially in one process.** There are no concurrency or race-condition tests (A06 payload 3 is not covered).
+- **Some spec payloads are not yet in the dataset:** error probing (A07-4), `/audit-demo` in production (A07-5),
+  direct approval-service abuse (A05-6, already covered by `tests/test_refunds.py`), and ID-confusion variants (A02-5).
+- **Statistics are descriptive.** Wilson intervals are shown, but no significance testing or power analysis is done.
+- **Evidence hashes are unsalted sha256 prefixes.** Short, guessable values (e.g. a known email) could be confirmed by hashing.
+  Evidence is meant for the project owner, not for publication of sensitive data.

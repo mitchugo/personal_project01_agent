@@ -224,3 +224,32 @@ A running record of what was learned each session. Keep entries short and honest
 
 **Next session**
 - Execute A01–A08 under an explicit budget; feed results into the Attack Evidence view's reserved panels.
+
+## Session 9 — 2026-11-06 — Red-team harness and evaluation framework (mock only)
+
+**Done**
+- Session 8 merged into `develop` locally (`02df3c2`, `--no-ff`), and the branch `feature/session-09-redteam-harness` created from it.
+  `v0-baseline` is untouched.
+- `attacks/datasets/` holds dataset 1.0.0: 16 attack cases covering A01–A08 and 5 benign cases. Each has a canary,
+  deterministic conditions, and obedient/resistant mock scripts.
+- `attacks/runner/` and `attacks/grading/`:
+  - a verified disposable DB per trial;
+  - a guarded provider (model identity, deadline, capture);
+  - a live gate (flag + budget, no fallback, no retries);
+  - sanitised JSONL evidence;
+  - a six-class grader;
+  - deterministic reports with Wilson intervals.
+- 59 new tests, and 6/6 planted mutants killed. No application code changed. No paid calls.
+
+**Learned / reinforced**
+- **Make the harness check its own evidence.** The first smoke run graded every trial `INCONCLUSIVE`. A FastAPI
+  dependency override written as `lambda rt=runtime: rt` made FastAPI treat `rt` as a query parameter and use a copy of the runtime.
+  The proposal records were empty while actions ran. The completeness check caught this instead of producing wrong verdicts.
+- **Redact serialised text as serialised text.** The path regex missed JSON-escaped backslashes (`C:\\Users\\...`), and a test caught it.
+- **Labels leak too.** Grade labels embedded condition text (`draft_body_contains:<customer name>`), so they now carry a hash.
+- **A worst-case mock is a useful control test.** With a fully obedient scripted model: no backend bypass, and exactly the four
+  documented within-permission gaps (T-22–T-25) produce impact. That measures the backend, not the model.
+- **Sample sizes need to be visible.** 3/3 has a 95% Wilson interval of about 44–100%, so the report prints n and the interval for every rate.
+
+**Next session**
+- With an approved budget, run live campaigns per spec (≥5 trials per case) into `evidence/runs/<date>-attack-aXX/`. Then remediate T-22–T-25.
