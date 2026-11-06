@@ -18,10 +18,10 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 | `develop` | Sessions 1–7 committed and pushed; HEAD `650f20a` |
 | Tag `v0-baseline` | Annotated, on `650f20a` (pre-attack baseline, 378 tests). **Do not move it.** |
 | Current branch | `feature/session-08-security-ui` (from `develop`) |
-| **Session 8** | **Complete but UNCOMMITTED** (local demo UI + `/demo` API). Mitch reviewed it in the browser; servers are stopped |
-| Tests | Backend **452** passed · Frontend unit **28** · Playwright **11** (installed Edge) |
-| Live API spend | ≈ **$0.138** of **$5** approved (Claude `claude-sonnet-5-5`) |
-| Open questions to Mitch | (1) Commit Session 8 to the feature branch? (2) Authorise a paid budget to test real Claude replies through the UI? |
+| **Session 8** | Committed `f5298ff` and pushed to `origin/feature/session-08-security-ui`; live UI verification in `evidence/runs/2026-11-06-session-08-live-ui/`. **Not merged into `develop`** |
+| Tests | Backend **452** passed · Frontend unit **28** · Playwright **11** (installed Edge; see the OneDrive note in §5) |
+| Live API spend | ≈ **$0.175** of **$5** approved (Claude `claude-sonnet-5-5`) |
+| Open questions to Mitch | Merge `feature/session-08-security-ui` into `develop`? (Session 9 should branch from a reviewed `develop`) |
 
 ## 3. Session history
 
@@ -34,7 +34,7 @@ GitHub: https://github.com/mitchugo/personal_project01_agent
 | 5 | `b415f2b` | `search_kb`, `draft_email` (recipient never supplied), `request_refund` (pending only); human-only `app/approvals.py` (CAS state machine, separation of duties, exact binding, idempotent execution) |
 | 6 | `05cd875` | Claude agent runtime (`app/agent/`): provider adapter, strict tool schemas, bounded manual loop, budgets, grounded reply record (finding F-001). 8 live runs. **Model fallback found and disabled** (`AGENT_MODEL_FALLBACK` off by default; `model_mismatch` rejection) |
 | 7 | `650f20a` | Baseline review: 7 doc fixes, deterministic e2e HTTP tests, 3 live HTTP runs, 11-control matrix, attack specs **A01–A08 (prepared, not executed)**, tag `v0-baseline` |
-| 8 | *uncommitted* | Local UI "Chigzio AI Agent Security Lab" (React 19 / Vite 8 / Tailwind 4 / TS 5.9) + `app/demo/` API |
+| 8 | `f5298ff` | Local UI "Chigzio AI Agent Security Lab" (React 19 / Vite 8 / Tailwind 4 / TS 5.9) + `app/demo/` API |
 
 ## 4. Architecture in one picture
 
@@ -63,6 +63,11 @@ cd frontend; npm run dev          # http://127.0.0.1:5173
 # Frontend tests
 cd frontend; npm test; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD="1"; npm run test:e2e
 ```
+
+**OneDrive note:** once OneDrive syncs the repo, files become cloud placeholders that Node reports as symlinks.
+Playwright discovery then finds "No tests found". Workaround (no repo change): copy `frontend/e2e/ui.spec.ts` to a
+directory outside OneDrive, with a config that sets the same `webServer` entries with an explicit `cwd: <repo>/frontend`,
+and run it with `NODE_PATH=<repo>/frontend/node_modules`.
 
 Real Claude: set `AGENT_PROVIDER=anthropic` (the key is in Mitch's User environment). **Every chat message costs money.**
 
